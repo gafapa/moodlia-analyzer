@@ -36,17 +36,36 @@ export function App() {
     setBusy(false);
   };
 
-  const saveAndConnect = async (event: FormEvent) => {
-    event.preventDefault();
-    const saved = await analyzer().profiles.save(form);
+  const afterSave = async (saved: Awaited<ReturnType<ReturnType<typeof analyzer>['profiles']['save']>>) => {
     if (!saved.ok) {
       setMessage(saved.error.message);
+      setBusy(false);
       return;
     }
-    if (!saved.value.tokensStored) setMessage('This system cannot encrypt tokens, so they were not saved.');
     setForm({ name: '', url: '', token: '', coreToken: '' });
     await refreshProfiles();
-    await connect(saved.value.tokensStored ? { profileId: saved.value.id } : form);
+    await connect({ profileId: saved.value.id });
+    if (!saved.value.tokensStored) setMessage('This system cannot encrypt tokens, so they are kept only until the app closes.');
+  };
+
+  const saveAndConnect = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!form.token && !form.coreToken) {
+      setMessage('Sign in to Moodle to get a token, or enter one.');
+      return;
+    }
+    setBusy(true);
+    await afterSave(await analyzer().profiles.save(form));
+  };
+
+  const signIn = async () => {
+    if (!form.name.trim() || !form.url.trim()) {
+      setMessage('Enter the site name and address first.');
+      return;
+    }
+    setBusy(true);
+    setMessage('Sign in on the Moodle page that opened.');
+    await afterSave(await analyzer().profiles.signIn({ name: form.name, url: form.url, token: form.token || undefined }));
   };
 
   const disconnect = async () => {
@@ -94,6 +113,7 @@ export function App() {
                   {profile.name}
                 </button>{' '}
                 <small>{profile.url}</small>{' '}
+                <button type="button" disabled={busy} onClick={async () => { setBusy(true); setMessage('Sign in on the Moodle page that opened.'); await afterSave(await analyzer().profiles.signIn({ id: profile.id, name: profile.name, url: profile.url })); }}>Sign in again</button>{' '}
                 <button type="button" onClick={async () => { await analyzer().profiles.remove(profile.id); await refreshProfiles(); }}>Remove</button>
               </li>
             ))}
@@ -104,9 +124,17 @@ export function App() {
         <h2>Add a site</h2>
         <label>Name <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
         <label>Moodle address <input required type="url" placeholder="https://moodle.example.edu" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></label>
-        <label>Token <input required type="password" autoComplete="off" value={form.token} onChange={(e) => setForm({ ...form, token: e.target.value })} /></label>
-        <label>Separate core web services token (optional) <input type="password" autoComplete="off" value={form.coreToken} onChange={(e) => setForm({ ...form, coreToken: e.target.value })} /></label>
-        <button type="submit" disabled={busy}>{busy ? 'Connecting…' : 'Save and connect'}</button>
+        <p>
+          <button type="button" disabled={busy} onClick={signIn}>Sign in to Moodle</button>{' '}
+          <small>Opens the site's own sign-in page and creates a Moodle app token. The app never sees your password.</small>
+        </p>
+        <details>
+          <summary>Enter tokens by hand</summary>
+          <label>MoodlIA or web service token <input type="password" autoComplete="off" value={form.token} onChange={(e) => setForm({ ...form, token: e.target.value })} /></label>
+          <label>Separate core web services token (optional) <input type="password" autoComplete="off" value={form.coreToken} onChange={(e) => setForm({ ...form, coreToken: e.target.value })} /></label>
+          <small>With the MoodlIA plugin, enter its token here and then sign in to Moodle too: the app uses the plugin token for MoodlIA and the Moodle app token for standard functions.</small>
+          <button type="submit" disabled={busy}>{busy ? 'Connecting…' : 'Save and connect'}</button>
+        </details>
       </form>
     </main>
   );

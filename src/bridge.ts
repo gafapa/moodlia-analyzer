@@ -45,6 +45,8 @@ interface AnalyzerBridge {
   profiles: {
     list(): Promise<Result<ProfileSummary[]>>;
     save(profile: ProfileInput): Promise<Result<{ id: string; tokensStored: boolean }>>;
+    /** Opens the site's sign-in page and saves a Moodle app token as the core token. */
+    signIn(profile: ProfileInput): Promise<Result<{ id: string; tokensStored: boolean }>>;
     remove(id: string): Promise<Result<void>>;
   };
   session: {

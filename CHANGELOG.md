@@ -16,3 +16,6 @@
 - CI on Windows, Ubuntu and macOS, including a smoke check of the packaged app, plus dependency audits and a check of the project page.
 - Release workflow: a version tag builds and checks the installers on the three systems and creates a draft GitHub release with SHA-256 checksums.
 - Project page on GitHub Pages that lists the installers of the latest release.
+- Sign in to Moodle: the site's own sign-in page opens in a separate window and Moodle returns a token for its mobile app service, saved as the profile's core web services token; the password never reaches the app. The token's signature is checked against the site and a per-sign-in random value. Saved sites can sign in again.
+- When the system cannot encrypt, tokens are kept in memory until the app closes, so a site can still be used without writing them to disk.
+- The smoke check also runs the sign-in window against a fake Moodle site.

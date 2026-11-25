@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { MoodleSession, SessionError } from './moodle/session.mjs';
 import { CourseCollector } from './analysis/collector.mjs';
 import { ProfileStore } from './profiles.mjs';
+import { signInForMobileToken } from './sign-in-window.mjs';
+import { smokeSignIn } from './smoke-sign-in.mjs';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const devServerUrl = process.env.MOODLIA_ANALYZER_DEV_URL ?? '';
@@ -48,6 +50,14 @@ function registerHandlers() {
   handle('profiles:list', () => profiles.list());
   handle('profiles:save', (input) => profiles.save(input ?? {}));
   handle('profiles:remove', (id) => profiles.remove(String(id)));
+  // Signs in on the site's own page and saves the mobile app token as the core web services
+  // token of the profile. The token stays in the main process.
+  handle('profiles:signIn', async (input) => {
+    const request = input && typeof input === 'object' ? input : {};
+    if (!String(request.name ?? '').trim()) throw new TypeError('A profile needs a name and a Moodle address.');
+    const coreToken = await signInForMobileToken(mainWindow, String(request.url ?? ''));
+    return profiles.save({ id: request.id, name: request.name, url: request.url, token: request.token, coreToken });
+  });
   handle('session:connect', async (request) => {
     const profile = request?.profileId ? await profiles.load(String(request.profileId)) : request ?? {};
     const next = new MoodleSession({ name: String(profile.name ?? 'Moodle'), url: String(profile.url ?? ''), token: profile.token, coreToken: profile.coreToken });
@@ -106,7 +116,8 @@ function createWindow() {
 
 /**
  * Startup check used by `npm run smoke`: the page loads, the bridge is present, Node is not
- * reachable from the page, and a bridge call returns. Prints one JSON line and quits.
+ * reachable from the page, a bridge call returns, and the Moodle sign-in window gets a token
+ * from a fake site. Prints one JSON line and quits.
  * @param {BrowserWindow} window
  */
 function runSmokeCheck(window) {
@@ -118,13 +129,15 @@ function runSmokeCheck(window) {
         rendered: document.getElementById('root').childElementCount > 0,
         bridge: typeof window.analyzer?.session?.connect === 'function' && typeof window.analyzer?.analysis?.collect === 'function',
         nodeHidden: typeof require === 'undefined' && typeof process === 'undefined',
+        signInBridge: typeof window.analyzer?.profiles?.signIn === 'function',
         profiles: (await window.analyzer.profiles.list()).ok
       }))()`);
+      result.signIn = await smokeSignIn();
     } catch (error) {
-      result = { error: String(error) };
+      result = { ...result, error: String(error) };
     }
     console.log(`SMOKE ${JSON.stringify(result)}`);
-    app.exit(result?.rendered && result.bridge && result.nodeHidden && result.profiles ? 0 : 1);
+    app.exit(result?.rendered && result.bridge && result.nodeHidden && result.profiles && result.signInBridge && result.signIn ? 0 : 1);
   });
 }
 

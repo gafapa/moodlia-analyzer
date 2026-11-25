@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('analyzer', Object.freeze({
   profiles: Object.freeze({
     list: () => invoke('profiles:list'),
     save: (profile) => invoke('profiles:save', profile),
+    signIn: (profile) => invoke('profiles:signIn', profile),
     remove: (id) => invoke('profiles:remove', id)
   }),
   session: Object.freeze({

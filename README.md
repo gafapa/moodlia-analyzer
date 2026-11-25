@@ -34,12 +34,19 @@ npm run dev                    # interface with hot reload inside Electron
 
 ### Connecting to Moodle
 
-Add a site with its name, its HTTPS address and a web service token. HTTP is accepted only for `localhost` and `127.0.0.1`.
+Add a site with its name and its HTTPS address. HTTP is accepted only for `localhost` and `127.0.0.1`. Then either:
 
-- With the MoodlIA plugin, use a token for the MoodlIA service. If that service does not include the standard Moodle functions, also enter a separate core web services token.
-- Without the plugin, use a token for a service that includes the standard functions the analysis needs, such as `core_webservice_get_site_info` and `core_enrol_get_users_courses`.
+- **Sign in to Moodle** (recommended). The app opens the site's own sign-in page in a separate window, so any sign-in method the site uses works, including single sign-on. Moodle then creates a token for its mobile app service (`moodle_mobile_app`) and hands it to the app, the same way the Moodle app gets one. The app never sees the password, the window keeps no cookies, and the token is checked against the site before it is saved. The site must allow the Moodle app ("Web services for mobile devices", on by default on recent sites); the app checks this before opening the window. Saved sites have **Sign in again** to replace an expired token.
+- **Enter tokens by hand**, for a token an administrator created for a specific service.
 
-On connect, the app reports which providers answered: the MoodlIA plugin (with its release) and core web services.
+#### Why two tokens
+
+A Moodle token belongs to one web service and can only call the functions of that service. The app uses two providers:
+
+- the MoodlIA plugin's functions (`local_moodlia_*`), available with a token for the MoodlIA service;
+- standard Moodle functions (`core_*`, `mod_*`, `gradereport_*`), which the course analysis needs, available with the Moodle app token or any service that includes them.
+
+One token is enough when its service has everything the app uses: the Moodle app token alone gives the full analysis without the plugin, and a MoodlIA service that also includes the standard functions serves both. On a site with the plugin whose service has only the plugin's functions, enter the MoodlIA token by hand and also sign in to Moodle: the app uses each token for its provider. On connect, the app reports which providers answered.
 
 ## Architecture
 
@@ -49,8 +56,9 @@ On connect, the app reports which providers answered: the MoodlIA plugin (with i
 | Moodle session | `electron/moodle/session.mjs` | Read-only session over the adaptive adapter of the [`moodlia`](https://www.npmjs.com/package/moodlia) package, which builds on [`moodle-core-cli`](https://www.npmjs.com/package/moodle-core-cli). |
 | Course collector | `electron/analysis/collector.mjs` | Reads one course through core web services and returns the data the analysis expects. |
 | Analysis | `src/analysis/` | Student metrics, grade prediction, risk and recommendations (TypeScript, no Moodle access). |
+| Moodle app token | `electron/moodle/mobile-token.mjs`, `electron/sign-in-window.mjs` | Sign-in on the site's own page through `admin/tool/mobile/launch.php`, and the check of the token Moodle returns. |
 | Profiles | `electron/profiles.mjs` | Saved sites; tokens encrypted with Electron `safeStorage`. |
-| Bridge | `electron/preload.cjs` | The only functions the page can call: `profiles.list/save/remove`, `session.connect/disconnect/courses/read` and `analysis.collect/onProgress`. |
+| Bridge | `electron/preload.cjs` | The only functions the page can call: `profiles.list/save/signIn/remove`, `session.connect/disconnect/courses/read` and `analysis.collect/onProgress`. |
 | Interface | `src/` | React and TypeScript, built with Vite. |
 
 Moodle requests are made by Node in the main process, so browser CORS rules do not apply and no browser extension is needed.
@@ -87,7 +95,7 @@ Differences from `moodlia-analyzer-web`, which this app corrects:
 | `npm run dev` | Vite dev server and Electron pointed at it. |
 | `npm run typecheck` | TypeScript for the interface and JSDoc checks for the main process. |
 | `npm test` | Main-process tests with `node --test`, including end-to-end tests that run the real `moodlia` and `moodle-core-cli` clients against a fake Moodle REST endpoint on `127.0.0.1` (connection with and without the plugin, and a full course collection that checks the Moodle function names and parameters sent). Then the analysis tests with Vitest. |
-| `npm run smoke` | Builds the interface and starts the app with `MOODLIA_ANALYZER_SMOKE=1`. The app checks that the page renders, the bridge is present, Node is not reachable from the page and a bridge call returns, then exits. A temporary profile directory is used. |
+| `npm run smoke` | Builds the interface and starts the app with `MOODLIA_ANALYZER_SMOKE=1`. The app checks that the page renders, the bridge is present, Node is not reachable from the page and a bridge call returns, then runs the Moodle sign-in window against a fake site on `127.0.0.1` (sign-in form, redirects and the signed token) and exits. A temporary profile directory is used. |
 | `npm run check` | Typecheck, tests and smoke check. |
 | `npm run package:dir` | Builds the interface and an unpacked app for this computer in `release/`. |
 | `npm run smoke:packaged` | Runs the smoke check on the unpacked app in `release/`. |
@@ -131,7 +139,8 @@ The installers are not code-signed yet: Windows SmartScreen warns about an unkno
 - The page runs with context isolation, the sandbox and no Node integration. It can reach Moodle only through the bridge functions, and only for read operations.
 - Only the app's own page may call the main process. Navigation away from the app is blocked, other windows are refused, and external `https://` links open in the default browser. Permission requests (camera, notifications and the like) are refused.
 - A Content Security Policy limits the page to its own scripts.
-- Tokens are encrypted with the operating system keychain (DPAPI on Windows, Keychain on macOS, the Secret Service on Linux) and never reach the page. If the system cannot encrypt, tokens are used for the session and are not written to disk.
+- Tokens are encrypted with the operating system keychain (DPAPI on Windows, Keychain on macOS, the Secret Service on Linux) and never reach the page. If the system cannot encrypt, tokens are kept in memory until the app closes and are not written to disk.
+- The Moodle sign-in window runs the site's page with no bridge to the app, in an in-memory session that is cleared afterwards. It accepts only HTTPS pages (or HTTP on this computer), refuses new windows and permission requests, and accepts a token only when Moodle signed it with this site's address and a random value created for that sign-in. The private token Moodle may add for automatic web sign-in is discarded.
 - Course and student data stay on the computer. The app has no backend and sends nothing to MoodlIA.
 
 ## Roadmap

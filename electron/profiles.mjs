@@ -1,7 +1,8 @@
 // @ts-check
 // Saved connection profiles. Tokens are encrypted with the operating system keychain
 // (Electron safeStorage) and never leave the main process; the interface only sees
-// whether a token is stored.
+// whether a token is stored. When the system cannot encrypt, tokens are kept in memory for
+// this run of the app only and are not written.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -16,6 +17,8 @@ export class ProfileStore {
   constructor(directory, secrets) {
     this.file = path.join(directory, 'profiles.json');
     this.secrets = secrets;
+    /** @type {Map<string, { token?: string, coreToken?: string }>} tokens kept only for this run */
+    this.memoryTokens = new Map();
   }
 
   async #readAll() {
@@ -55,8 +58,8 @@ export class ProfileStore {
       id: profile.id,
       name: profile.name,
       url: profile.url,
-      hasToken: Boolean(profile.token),
-      hasCoreToken: Boolean(profile.coreToken)
+      hasToken: Boolean(profile.token || this.memoryTokens.get(profile.id)?.token),
+      hasCoreToken: Boolean(profile.coreToken || this.memoryTokens.get(profile.id)?.coreToken)
     }));
   }
 
@@ -78,6 +81,10 @@ export class ProfileStore {
       coreToken: input.coreToken ? this.#seal(input.coreToken) : existing?.coreToken ?? null
     };
     await this.#writeAll([...profiles.filter((profile) => profile.id !== record.id), record]);
+    if (!this.secrets.isEncryptionAvailable() && (input.token || input.coreToken)) {
+      const kept = this.memoryTokens.get(record.id) ?? {};
+      this.memoryTokens.set(record.id, { token: input.token || kept.token, coreToken: input.coreToken || kept.coreToken });
+    }
     return {
       id: record.id,
       tokensStored: this.secrets.isEncryptionAvailable()
@@ -88,6 +95,7 @@ export class ProfileStore {
   async remove(id) {
     const profiles = await this.#readAll();
     await this.#writeAll(profiles.filter((profile) => profile.id !== id));
+    this.memoryTokens.delete(id);
   }
 
   /**
@@ -97,6 +105,7 @@ export class ProfileStore {
   async load(id) {
     const profile = (await this.#readAll()).find((entry) => entry.id === id);
     if (!profile) throw new TypeError('The profile no longer exists.');
-    return { id: profile.id, name: profile.name, url: profile.url, token: this.#open(profile.token), coreToken: this.#open(profile.coreToken) };
+    const kept = this.memoryTokens.get(profile.id) ?? {};
+    return { id: profile.id, name: profile.name, url: profile.url, token: this.#open(profile.token) || kept.token || '', coreToken: this.#open(profile.coreToken) || kept.coreToken || '' };
   }
 }

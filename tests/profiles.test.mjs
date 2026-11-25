@@ -36,12 +36,17 @@ test('saving without a token keeps the stored one', async () => {
   assert.equal(loaded.token, 'first');
 });
 
-test('without system encryption tokens are not written to disk', async () => {
+test('without system encryption tokens are kept for this run only', async () => {
   const { directory, profiles } = await store(false);
   const { id, tokensStored } = await profiles.save({ name: 'Lab', url: 'https://lab.test', token: 'secret-token' });
   assert.equal(tokensStored, false);
   assert.ok(!(await fs.readFile(path.join(directory, 'profiles.json'), 'utf8')).includes('secret-token'));
-  assert.equal((await profiles.list())[0].hasToken, false);
+  assert.equal((await profiles.list())[0].hasToken, true);
+  await profiles.save({ id, name: 'Lab', url: 'https://lab.test', coreToken: 'core-token' });
+  assert.deepEqual(await profiles.load(id), { id, name: 'Lab', url: 'https://lab.test', token: 'secret-token', coreToken: 'core-token' });
+  // A new run of the app (a new store on the same directory) has no tokens.
+  const restarted = new ProfileStore(directory, secrets(false));
+  assert.equal((await restarted.list())[0].hasToken, false);
   await profiles.remove(id);
   assert.deepEqual(await profiles.list(), []);
 });
