@@ -3,6 +3,7 @@ import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from 'electr
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MoodleSession, SessionError } from './moodle/session.mjs';
+import { CourseCollector } from './analysis/collector.mjs';
 import { ProfileStore } from './profiles.mjs';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -56,7 +57,14 @@ function registerHandlers() {
   });
   handle('session:disconnect', () => { current = null; return true; });
   handle('session:courses', () => requireSession().listCourses());
-  handle('session:read', (operation, parameters) => requireSession().read(String(operation), parameters && typeof parameters === 'object' ? parameters : {}));
+  handle('analysis:collect', async (courseId, course) => {
+    const id = Number(courseId);
+    if (!Number.isInteger(id) || id < 1) throw new TypeError('A course id is required.');
+    const sender = mainWindow?.webContents;
+    const collector = new CourseCollector(requireSession(), (message, percent) => sender?.send('analysis:progress', { courseId: id, message, percent }));
+    return collector.collect(id, course && typeof course === 'object' ? course : undefined);
+  });
+  handle('session:read', (provider, operation, parameters) => requireSession().read(/** @type {any} */ (String(provider)), String(operation), parameters && typeof parameters === 'object' ? parameters : {}));
 }
 
 function contentSecurityPolicy() {
@@ -108,7 +116,7 @@ function runSmokeCheck(window) {
       result = await window.webContents.executeJavaScript(`(async () => ({
         title: document.title,
         rendered: document.getElementById('root').childElementCount > 0,
-        bridge: typeof window.analyzer?.session?.connect === 'function',
+        bridge: typeof window.analyzer?.session?.connect === 'function' && typeof window.analyzer?.analysis?.collect === 'function',
         nodeHidden: typeof require === 'undefined' && typeof process === 'undefined',
         profiles: (await window.analyzer.profiles.list()).ok
       }))()`);

@@ -61,9 +61,8 @@ test('a site with the plugin is detected and plugin reads are allowed', async ()
     const summary = await session.connect();
     assert.equal(summary.moodlia.available, true);
     assert.equal(summary.moodlia.pluginRelease, '0.1.224');
-    const status = await session.read('get_moodlia_status');
-    assert.equal(status.provider, 'moodlia');
-    assert.equal(status.data.plugin_release, '0.1.224');
+    const status = await session.read('moodlia', 'get_moodlia_status');
+    assert.equal(status.plugin_release, '0.1.224');
     assert.equal((await session.listCourses()).length, 1);
   } finally {
     await moodle.close();

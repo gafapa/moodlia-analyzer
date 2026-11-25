@@ -107,32 +107,42 @@ export class MoodleSession {
     };
   }
 
-  /**
-   * Chooses the provider for one operation: MoodlIA when the plugin declares it, core otherwise.
-   * @param {string} operation
-   * @returns {{ name: ProviderName, adapter: any }}
-   */
-  providerFor(operation) {
-    if (!this.discovery) throw new SessionError('not_connected', 'Connect to the Moodle site first.');
-    const moodlia = this.adapter.availableAdapter(['moodlia']);
-    if (moodlia?.hasDeclaredOperation(operation)) return { name: 'moodlia', adapter: moodlia };
-    const core = this.adapter.availableAdapter(['core']);
-    if (core && core.discovery.operations.includes(operation)) return { name: 'core', adapter: core };
-    throw new SessionError('operation_unavailable', `This site does not offer the "${operation}" operation to this token.`);
+  /** @param {ProviderName} provider */
+  offers(provider) {
+    return Boolean(this.discovery?.providers?.[provider]?.available);
   }
 
   /**
-   * Runs a read operation from the canonical contracts.
+   * The adapter of one provider, if it answered and offers the operation to this token.
+   * Both contracts use some of the same operation names with different parameters and
+   * responses, so callers always name the provider.
+   * @param {ProviderName} provider
+   * @param {string} operation
+   */
+  adapterFor(provider, operation) {
+    if (!this.discovery) throw new SessionError('not_connected', 'Connect to the Moodle site first.');
+    if (provider !== 'moodlia' && provider !== 'core') throw new SessionError('invalid_provider', 'The provider must be "moodlia" or "core".');
+    const adapter = this.adapter.availableAdapter([provider]);
+    const offered = provider === 'moodlia'
+      ? adapter?.hasDeclaredOperation(operation)
+      : adapter?.discovery.operations.includes(operation);
+    if (!offered) throw new SessionError('operation_unavailable', `The site does not offer "${operation}" through ${provider === 'moodlia' ? 'the MoodlIA plugin' : 'core web services'} to this token.`);
+    return adapter;
+  }
+
+  /**
+   * Runs a read operation of one provider's canonical contract.
+   * @param {ProviderName} provider
    * @param {string} operation
    * @param {Record<string, unknown>} [parameters]
    */
-  async read(operation, parameters = {}) {
-    const { name, adapter } = this.providerFor(operation);
+  async read(provider, operation, parameters = {}) {
+    const adapter = this.adapterFor(provider, operation);
     const definition = adapter.client.contract.operations.find((entry) => entry.name === operation);
     // The core contract marks reads with "kind", the MoodlIA contract with "type".
     if ((definition?.kind ?? definition?.type) !== 'read') throw new SessionError('write_refused', `"${operation}" changes Moodle data; the analyzer only reads.`);
     try {
-      return { provider: name, data: await adapter.client.callOperation(operation, parameters) };
+      return await adapter.client.callOperation(operation, parameters);
     } catch (error) {
       throw publicError(error);
     }
@@ -141,7 +151,7 @@ export class MoodleSession {
   /** Courses the connected user is enrolled in. */
   async listCourses() {
     const userid = this.summary().userId;
-    const { data } = await this.read('get_user_courses', { user_id: userid });
+    const data = await this.read('core', 'get_user_courses', { user_id: userid });
     return (Array.isArray(data) ? data : []).map((course) => ({
       id: Number(course.id),
       shortName: String(course.shortname ?? ''),

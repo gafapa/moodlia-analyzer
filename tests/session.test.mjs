@@ -60,7 +60,7 @@ test('one token is used for both providers unless a core token is given', () => 
   assert.throws(() => new MoodleSession({ ...profile, token: '' }, { createSiteAdapter: fakeSite(), moodliaContract: {} }), { code: 'missing_token' });
 });
 
-test('the plugin is preferred for operations it declares, core is used otherwise', async () => {
+test('each read goes to the provider it names', async () => {
   const calls = [];
   const session = new MoodleSession(profile, {
     moodliaContract: {},
@@ -73,20 +73,24 @@ test('the plugin is preferred for operations it declares, core is used otherwise
   const summary = await session.connect();
   assert.equal(summary.moodlia.available, true);
   assert.equal(summary.moodlia.pluginRelease, '0.1.224');
-  assert.equal((await session.read('get_course_progress_report', { courseid: 3 })).provider, 'moodlia');
+  await session.read('moodlia', 'get_course_progress_report', { course_id: 3 });
+  assert.deepEqual(calls.at(-1), ['moodlia', 'get_course_progress_report', { course_id: 3 }]);
+  await assert.rejects(session.read('moodlia', 'get_user_courses', { user_id: 7 }), { code: 'operation_unavailable' });
   assert.deepEqual(await session.listCourses(), [{ id: 3, shortName: 'BIO', fullName: 'Biology', visible: true }]);
   assert.deepEqual(calls.at(-1), ['core', 'get_user_courses', { user_id: 7 }]);
 });
 
-test('without the plugin every read goes through core web services', async () => {
+test('without the plugin only core web services answer', async () => {
   const session = new MoodleSession(profile, {
     moodliaContract: {},
     createSiteAdapter: fakeSite({ moodlia: { operations: [], declared: [], down: true }, core: { operations: ['get_site_info'] } })
   });
   const summary = await session.connect();
   assert.deepEqual(summary.moodlia, { available: false, reason: 'Plugin not installed.' });
-  assert.equal((await session.read('get_site_info')).provider, 'core');
-  await assert.rejects(session.read('get_course_progress_report'), { code: 'operation_unavailable' });
+  assert.equal(session.offers('moodlia'), false);
+  await session.read('core', 'get_site_info');
+  await assert.rejects(session.read('moodlia', 'get_course_progress_report'), { code: 'operation_unavailable' });
+  await assert.rejects(session.read('other', 'get_site_info'), { code: 'invalid_provider' });
 });
 
 test('write operations are refused even when a provider offers them', async () => {
@@ -95,10 +99,10 @@ test('write operations are refused even when a provider offers them', async () =
     createSiteAdapter: fakeSite({ moodlia: { operations: ['update_grade_value'], declared: ['update_grade_value'], writes: ['update_grade_value'] } })
   });
   await session.connect();
-  await assert.rejects(session.read('update_grade_value', {}), { code: 'write_refused' });
+  await assert.rejects(session.read('moodlia', 'update_grade_value', {}), { code: 'write_refused' });
 });
 
 test('reads before connecting are refused', async () => {
   const session = new MoodleSession(profile, { moodliaContract: {}, createSiteAdapter: fakeSite({ core: { operations: [] } }) });
-  await assert.rejects(session.read('get_site_info'), { code: 'not_connected' });
+  await assert.rejects(session.read('core', 'get_site_info'), { code: 'not_connected' });
 });

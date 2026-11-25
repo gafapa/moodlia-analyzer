@@ -2,6 +2,7 @@
 // to be designed; keep product logic out of these components.
 import { useEffect, useState, type FormEvent } from 'react';
 import { analyzer, type CourseSummary, type ProfileSummary, type SiteSummary } from './bridge';
+import { CourseView } from './CourseView';
 
 export function App() {
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
@@ -10,6 +11,7 @@ export function App() {
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<CourseSummary | null>(null);
 
   const refreshProfiles = async () => {
     const result = await analyzer().profiles.list();
@@ -53,6 +55,8 @@ export function App() {
     setCourses([]);
   };
 
+  if (site && selected) return <CourseView course={selected} onBack={() => setSelected(null)} />;
+
   if (site) {
     return (
       <main className="shell">
@@ -69,7 +73,7 @@ export function App() {
         <h2>Courses ({courses.length})</h2>
         <ul>
           {courses.map((course) => (
-            <li key={course.id}>{course.fullName} <small>{course.shortName}</small></li>
+            <li key={course.id}><button type="button" onClick={() => setSelected(course)}>{course.fullName}</button> <small>{course.shortName}</small></li>
           ))}
         </ul>
       </main>

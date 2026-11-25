@@ -14,6 +14,14 @@ contextBridge.exposeInMainWorld('analyzer', Object.freeze({
     connect: (request) => invoke('session:connect', request),
     disconnect: () => invoke('session:disconnect'),
     courses: () => invoke('session:courses'),
-    read: (operation, parameters) => invoke('session:read', operation, parameters)
+    read: (provider, operation, parameters) => invoke('session:read', provider, operation, parameters)
+  }),
+  analysis: Object.freeze({
+    collect: (courseId, course) => invoke('analysis:collect', courseId, course),
+    onProgress: (listener) => {
+      const forward = (_event, progress) => listener(progress);
+      ipcRenderer.on('analysis:progress', forward);
+      return () => ipcRenderer.removeListener('analysis:progress', forward);
+    }
   })
 }));

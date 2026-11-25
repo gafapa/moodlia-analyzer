@@ -1,4 +1,5 @@
 // Typed access to the functions exposed by electron/preload.cjs.
+import type { CollectedCourseData } from './analysis/types';
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: { code: string; message: string } };
 
@@ -50,7 +51,11 @@ interface AnalyzerBridge {
     connect(request: { profileId: string } | ProfileInput): Promise<Result<SiteSummary>>;
     disconnect(): Promise<Result<boolean>>;
     courses(): Promise<Result<CourseSummary[]>>;
-    read(operation: string, parameters?: Record<string, unknown>): Promise<Result<{ provider: 'moodlia' | 'core'; data: unknown }>>;
+    read(provider: 'moodlia' | 'core', operation: string, parameters?: Record<string, unknown>): Promise<Result<unknown>>;
+  };
+  analysis: {
+    collect(courseId: number, course?: CourseSummary): Promise<Result<CollectedCourseData>>;
+    onProgress(listener: (progress: { courseId: number; message: string; percent: number }) => void): () => void;
   };
 }
 
