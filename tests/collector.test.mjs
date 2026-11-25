@@ -5,10 +5,14 @@ import { CourseCollector, attemptGrade, isStudent, normalizePost, parseGradeItem
 /** Core payloads keyed by operation; a function value receives the parameters. */
 const COURSE = 12;
 const payloads = {
-  get_course_contents: [{ id: 1, name: 'Week 1', modules: [] }],
-  get_course_assignments: { courses: [{ id: COURSE, assignments: [{ id: 30, name: 'Essay', duedate: 1_800_000_000 }] }] },
+  get_course_contents: [{ id: 1, name: 'Week 1', modules: [{ id: 300, modname: 'assign', visible: 1 }, { id: 301, modname: 'assign', visible: 0 }] }],
+  get_course_assignments: { courses: [{ id: COURSE, assignments: [
+    { id: 30, cmid: 300, name: 'Essay', duedate: 1_800_000_000 },
+    { id: 31, cmid: 301, name: 'Hidden essay' },
+    { id: 32, cmid: 302, name: 'Opens later', allowsubmissionsfromdate: 4_000_000_000 }
+  ] }] },
   get_course_quizzes: { quizzes: [{ id: 40, name: 'Quiz', grade: 10, sumgrades: 20 }] },
-  get_course_forums: [{ id: 50, name: 'Forum' }],
+  get_course_forums: [{ id: 50, name: 'Forum', type: 'general' }, { id: 51, name: 'Announcements', type: 'news' }],
   get_course_pages: { pages: [{ id: 60 }] },
   get_course_resources: { resources: [] },
   get_assignment_submissions: { assignments: [{ assignmentid: 30, submissions: [{ userid: 7, status: 'submitted', timemodified: 1_799_000_000 }] }] },
@@ -16,7 +20,7 @@ const payloads = {
   get_forum_discussions: { discussions: [{ id: 900, discussion: 70 }] },
   get_forum_discussion_posts: { posts: [{ id: 900, author: { id: 7 }, parentid: 0, timecreated: 1_799_500_000 }, { id: 901, author: { id: 8 }, parentid: 900, timecreated: 1_799_600_000 }] },
   get_enrolled_users: [
-    { id: 7, fullname: 'Ana', roles: [{ shortname: 'student' }], lastaccess: 1_799_900_000 },
+    { id: 7, fullname: 'Ana', roles: [{ shortname: 'student' }], lastaccess: 1_799_900_000, lastcourseaccess: 1_799_000_000 },
     { id: 8, fullname: 'Teacher', roles: [{ shortname: 'editingteacher' }] },
     { id: 9, fullname: 'Luis' }
   ],
@@ -57,6 +61,14 @@ test('a course is collected through core web services in the analysis shape', as
   assert.equal(data.assignmentGradesByAssign[30].length, 1);
   assert.equal(data.logsAvailable, false);
   assert.deepEqual(data.unavailable, {});
+  // Hidden activities and assignments not open yet do not count.
+  assert.deepEqual(data.assignments.map((assignment) => assignment.id), [30]);
+  assert.deepEqual(data.excluded, { hidden: 1, notOpenYet: 1 });
+  // Announcement forums do not count for participation.
+  assert.deepEqual(data.forums.map((forum) => forum.id), [50]);
+  // Last access is to the course when Moodle gives it.
+  assert.equal(ana.lastaccess, 1_799_000_000);
+  assert.equal(ana.lastSiteAccess, 1_799_900_000);
   assert.equal(progress.at(-1), 100);
   // Grades come from one course-wide call, attempts are read per student.
   assert.equal(session.calls.filter(([, operation]) => operation === 'get_grade_items').length, 1);

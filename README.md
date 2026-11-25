@@ -15,7 +15,9 @@ What works:
 - Saved Moodle sites with tokens encrypted by the operating system keychain.
 - Connection with or without the MoodlIA plugin, with the providers detected on connect.
 - The list of the user's courses.
-- Course analysis: data collection through core Moodle web services, then the engagement, grade, risk and recommendation analysis carried over from `moodlia-analyzer-web`. The course view shows a course summary, the grade distribution, recommendations, a sortable student table with per-student risk factors, recommendations and grade items, and per-assignment, quiz and forum summaries.
+- Course analysis: data collection through core Moodle web services, then the engagement, grade, risk and recommendation analysis carried over from `moodlia-analyzer-web`. The course view shows summary cards; charts of risk, the grade distribution, engagement against grade per student, submissions per assignment on time and late, and student activity per week; recommendations; a sortable student table with per-student risk factors, recommendations, indicators and a chart of grade items; and per-assignment, quiz and forum tables.
+- Interface in Galician, Spanish and English, chosen from the selector at the top right; it starts in the system language. The analysis returns its texts as keys with values, so they are translated too.
+- No application menu on Windows and Linux; macOS keeps the standard app, edit and window menus.
 - Read-only access to any read operation of the canonical contracts.
 
 The interface is provisional: it exists to exercise the connection and the analysis and will be redesigned.
@@ -59,7 +61,9 @@ One token is enough when its service has everything the app uses: the Moodle app
 | Main process | `electron/main.mjs` | Window, security settings, and the IPC handlers the interface calls. |
 | Moodle session | `electron/moodle/session.mjs` | Read-only session over the adaptive adapter of the [`moodlia`](https://www.npmjs.com/package/moodlia) package, which builds on [`moodle-core-cli`](https://www.npmjs.com/package/moodle-core-cli). |
 | Course collector | `electron/analysis/collector.mjs` | Reads one course through core web services and returns the data the analysis expects. |
-| Analysis | `src/analysis/` | Student metrics, grade prediction, risk and recommendations, and per-activity summaries (TypeScript, no Moodle access). |
+| Analysis | `src/analysis/` | Student metrics, grade prediction, risk and recommendations, per-activity summaries and chart data (TypeScript, no Moodle access). |
+| Charts | `src/charts/` | SVG charts with hover tooltips and light and dark colours; risk levels carry a shape and a label as well as a colour. |
+| Translations | `src/i18n/` | Galician, Spanish and English catalogs; `en.ts` defines the keys and the typechecker requires every catalog to have all of them. |
 | Moodle app token | `electron/moodle/mobile-token.mjs`, `electron/sign-in-window.mjs` | Reads the site's mobile settings, then gets the token with username and password through `login/token.php` or with the site's own sign-in page through `admin/tool/mobile/launch.php`. |
 | Profiles | `electron/profiles.mjs` | Saved sites; tokens encrypted with Electron `safeStorage`. |
 | Bridge | `electron/preload.cjs` | The only functions the page can call: `profiles.list/save/signInMethod/signIn/remove`, `session.connect/disconnect/courses/read` and `analysis.collect/onProgress`. |
@@ -82,6 +86,8 @@ The collector reads, through core web services:
 | Grades | `get_grade_items` once for the whole course |
 | Per student | `get_activity_completion_statuses` and `get_user_quiz_attempts_legacy` for each quiz |
 
+Activities students cannot see yet are left out of every count: hidden modules, and assignments that do not accept submissions yet. Announcement forums are left out of forum participation, since only teachers post there. Last access is the last access to the course (Moodle's `lastcourseaccess`), not to the whole site.
+
 A source the token cannot read is listed in the result's `unavailable` field with its reason and counted as empty, so a partial token still gives an analysis. Standard web services do not expose the course log, so log-based metrics are marked unavailable. A collector that uses the MoodlIA plugin's reports is planned.
 
 Differences from `moodlia-analyzer-web`, which this app corrects:
@@ -91,6 +97,7 @@ Differences from `moodlia-analyzer-web`, which this app corrects:
 - Course profiles are requested with the `userlist` structure Moodle expects.
 - Forum posts from the current Moodle forum API (`author.id`, `parentid`, `timecreated`) are normalized to the fields the metrics read.
 - Grades come from one course-wide call instead of one call per student.
+- Hidden activities no longer count as missing work, and last access is to the course instead of the site.
 
 ## Development
 

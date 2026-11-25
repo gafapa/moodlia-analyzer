@@ -1,5 +1,5 @@
 // @ts-check
-import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, safeStorage, session, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MoodleSession, SessionError, normalizeSiteUrl } from './moodle/session.mjs';
@@ -147,6 +147,11 @@ function runSmokeCheck(window) {
 }
 
 app.whenReady().then(() => {
+  // No application menu: the app has its own controls. macOS keeps the standard app, edit
+  // and window menus, without which Quit, copy and paste shortcuts do not work there.
+  Menu.setApplicationMenu(process.platform === 'darwin'
+    ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }])
+    : null);
   if (process.env.MOODLIA_ANALYZER_SMOKE === '1') app.setPath('userData', path.join(app.getPath('temp'), `moodlia-analyzer-smoke-${process.pid}`));
   profiles = new ProfileStore(app.getPath('userData'), safeStorage);
   session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));

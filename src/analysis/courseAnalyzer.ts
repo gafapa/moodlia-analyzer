@@ -9,6 +9,7 @@ import type {
   StudentMetrics,
 } from "./types";
 import { StudentMetricsComputer } from "./metrics";
+import { msg, type AnalysisMessage } from "./types";
 
 function round(value: number, digits = 1): number {
   const factor = 10 ** digits;
@@ -56,67 +57,67 @@ class GradePredictor {
 class RiskAssessor {
   constructor(private readonly passThresholdPct: number) {}
 
-  assess(metrics: StudentMetrics, prediction: GradePrediction): { level: RiskLevel; factors: string[] } {
-    const factors: string[] = [];
+  assess(metrics: StudentMetrics, prediction: GradePrediction): { level: RiskLevel; factors: AnalysisMessage[] } {
+    const factors: AnalysisMessage[] = [];
     let riskPoints = 0;
 
     if (metrics.daysSinceAccess > 14) {
-      factors.push(`No course access for ${metrics.daysSinceAccess} days.`);
+      factors.push(msg('risk.noAccess', { days: metrics.daysSinceAccess }));
       riskPoints += metrics.daysSinceAccess > 30 ? 3 : 2;
     } else if (metrics.daysSinceAccess > 7) {
-      factors.push(`Limited recent access: ${metrics.daysSinceAccess} days since last visit.`);
+      factors.push(msg('risk.limitedAccess', { days: metrics.daysSinceAccess }));
       riskPoints += 1;
     }
 
     if (metrics.totalAssignments > 0 && metrics.submissionRate !== null) {
       if (metrics.submissionRate < 50) {
-        factors.push(`Only ${round(metrics.submissionRate, 0)}% of assignments have been submitted.`);
+        factors.push(msg('risk.fewSubmissions', { pct: round(metrics.submissionRate, 0) }));
         riskPoints += 3;
       } else if (metrics.submissionRate < 75) {
-        factors.push(`Assignment submission rate is below target at ${round(metrics.submissionRate, 0)}%.`);
+        factors.push(msg('risk.lowSubmissions', { pct: round(metrics.submissionRate, 0) }));
         riskPoints += 1;
       }
     }
 
     if (metrics.finalGradePct !== null) {
       if (metrics.finalGradePct < this.passThresholdPct - 10) {
-        factors.push(`Current grade is well below the passing threshold at ${round(metrics.finalGradePct, 0)}%.`);
+        factors.push(msg('risk.gradeWellBelow', { pct: round(metrics.finalGradePct, 0) }));
         riskPoints += 3;
       } else if (metrics.finalGradePct < this.passThresholdPct + 5) {
-        factors.push(`Current grade is close to the passing threshold at ${round(metrics.finalGradePct, 0)}%.`);
+        factors.push(msg('risk.gradeNearPass', { pct: round(metrics.finalGradePct, 0) }));
         riskPoints += 2;
       }
     }
 
     if (metrics.gradeTrend === "declining") {
-      factors.push("Grade trend is declining.");
+      factors.push(msg('risk.gradeDeclining'));
       riskPoints += 2;
     }
 
     if (metrics.engagementScore < 30) {
-      factors.push(`Engagement score is critically low at ${round(metrics.engagementScore, 0)}/100.`);
+      factors.push(msg('risk.engagementCritical', { score: round(metrics.engagementScore, 0) }));
       riskPoints += 2;
     } else if (metrics.engagementScore < 50) {
-      factors.push(`Engagement score is below expectation at ${round(metrics.engagementScore, 0)}/100.`);
+      factors.push(msg('risk.engagementLow', { score: round(metrics.engagementScore, 0) }));
       riskPoints += 1;
     }
 
     if (metrics.totalActivities > 0 && metrics.completionRate !== null && metrics.completionRate < 40) {
-      factors.push(`Only ${round(metrics.completionRate, 0)}% of tracked activities are complete.`);
+      factors.push(msg('risk.lowCompletion', { pct: round(metrics.completionRate, 0) }));
       riskPoints += 2;
     }
 
     if (metrics.totalForums > 0 && metrics.forumPostsCount === 0) {
-      factors.push("No forum participation detected.");
+      factors.push(msg('risk.noForum'));
       riskPoints += 1;
     }
 
     if (metrics.totalQuizzes > 0 && metrics.quizCoverageRate !== null) {
       if (metrics.quizCoverageRate < 30) {
-        factors.push(`Only ${round(metrics.quizCoverageRate, 0)}% of quizzes have been attempted.`);
+        factors.push(msg('risk.fewQuizzes', { pct: round(metrics.quizCoverageRate, 0) }));
         riskPoints += 2;
       } else if (metrics.quizCoverageRate < 60) {
-        factors.push(`Quiz coverage is low at ${round(metrics.quizCoverageRate, 0)}%.`);
+        factors.push(msg('risk.lowQuizCoverage', { pct: round(metrics.quizCoverageRate, 0) }));
         riskPoints += 1;
       }
     }
@@ -158,50 +159,50 @@ class RiskAssessor {
 class RecommendationEngine {
   constructor(private readonly passThresholdPct: number) {}
 
-  forStudent(metrics: StudentMetrics): string[] {
-    const recommendations: string[] = [];
+  forStudent(metrics: StudentMetrics): AnalysisMessage[] {
+    const recommendations: AnalysisMessage[] = [];
 
     if (metrics.daysSinceAccess > 7) {
-      recommendations.push(`Re-enter the course soon. The last visit was ${metrics.daysSinceAccess} days ago.`);
+      recommendations.push(msg('student.reenter', { days: metrics.daysSinceAccess }));
     }
 
     const missingAssignments = metrics.totalAssignments - metrics.submittedAssignments;
     if (metrics.totalAssignments > 0 && missingAssignments > 0) {
-      recommendations.push(`There are ${missingAssignments} assignments still pending review or submission.`);
+      recommendations.push(msg('student.pendingAssignments', { count: missingAssignments }));
     }
 
     if (metrics.lateSubmissions > 0) {
-      recommendations.push("Create a deadline plan to reduce late submissions.");
+      recommendations.push(msg('student.latePlan'));
     }
 
     if (metrics.totalActivities > 0 && (metrics.completionRate ?? 0) < 60) {
-      recommendations.push("Review the incomplete course activities before moving on.");
+      recommendations.push(msg('student.incompleteActivities'));
     }
 
     if (metrics.quizAvgPct !== null && metrics.quizAvgPct < this.passThresholdPct) {
-      recommendations.push("Quiz performance is below target. Revisit the course materials before the next attempt.");
+      recommendations.push(msg('student.quizBelowTarget'));
     }
 
     if (metrics.quizTrend === "declining") {
-      recommendations.push("Quiz trend is declining. A tutor or teacher follow-up is advisable.");
+      recommendations.push(msg('student.quizDeclining'));
     }
 
     if (metrics.totalForums > 0 && metrics.forumPostsCount === 0) {
-      recommendations.push("Use the course forums to ask questions and increase participation.");
+      recommendations.push(msg('student.useForums'));
     }
 
     if (metrics.gradeTrend === "declining") {
-      recommendations.push("The grade trend is deteriorating. Review the most recent topics and feedback.");
+      recommendations.push(msg('student.gradeDeclining'));
     }
 
     if (recommendations.length === 0) {
-      recommendations.push("Performance is stable. Keep the current pace and consistency.");
+      recommendations.push(msg('student.stable'));
     }
 
     return recommendations;
   }
 
-  forTeacher(studentMetrics: Array<StudentMetrics & { riskLevel: RiskLevel }>, courseData: CollectedCourseData): string[] {
+  forTeacher(studentMetrics: Array<StudentMetrics & { riskLevel: RiskLevel }>, courseData: CollectedCourseData): AnalysisMessage[] {
     if (studentMetrics.length === 0) {
       return [];
     }
@@ -213,30 +214,30 @@ class RecommendationEngine {
     const averageSubmissionRate = average(studentMetrics.map((student) => student.submissionRate));
     const forumStudents = studentMetrics.filter((student) => student.totalForums > 0);
     const withoutForumPosts = forumStudents.filter((student) => student.forumPostsCount === 0).length;
-    const recommendations: string[] = [];
+    const recommendations: AnalysisMessage[] = [];
 
     if (highRisk > 0) {
-      recommendations.push(`${highRisk} students are currently classified as high risk. Prioritize direct outreach.`);
+      recommendations.push(msg('teacher.highRisk', { count: highRisk }));
     }
 
     if (inactive7d / total > 0.3) {
-      recommendations.push(`${round((inactive7d / total) * 100, 0)}% of students have not accessed the course in the last 7 days.`);
+      recommendations.push(msg('teacher.inactive', { pct: round((inactive7d / total) * 100, 0) }));
     }
 
     if (averageEngagement < 50) {
-      recommendations.push(`Average engagement is low at ${round(averageEngagement, 0)}/100. Consider more interactive checkpoints.`);
+      recommendations.push(msg('teacher.lowEngagement', { score: round(averageEngagement, 0) }));
     }
 
     if (averageSubmissionRate !== null && averageSubmissionRate < 70) {
-      recommendations.push(`Average assignment submission rate is ${round(averageSubmissionRate, 0)}%. Review task clarity and timing.`);
+      recommendations.push(msg('teacher.lowSubmission', { pct: round(averageSubmissionRate, 0) }));
     }
 
     if (forumStudents.length > 0 && withoutForumPosts / forumStudents.length > 0.5) {
-      recommendations.push("More than half of students have not posted in forums. Prompt discussion with guided questions.");
+      recommendations.push(msg('teacher.forumSilence'));
     }
 
     if (courseData.forums.length === 0) {
-      recommendations.push("The course has no forums. Adding one can improve interaction and visibility into student confusion.");
+      recommendations.push(msg('teacher.noForums'));
     }
 
     return recommendations;

@@ -20,3 +20,8 @@
 - When the system cannot encrypt, tokens are kept in memory until the app closes, so a site can still be used without writing them to disk.
 - The smoke check also runs the sign-in window against a fake Moodle site.
 - The course view shows all the analysis computes: summary cards, grade distribution, a sortable student table with last access, assignments, quizzes, forum posts and completion, a detail per student (risk factors, recommendations, indicators, grade items), per-assignment, quiz and forum summaries, and the data sources read. A course can be collected again.
+- Charts in the course view: students by risk level, grade distribution with the pass mark, engagement against grade per student (select a point to open the student), submissions per assignment on time and late in due-date order, student activity per week, and each student's grade items. Hover tooltips, keyboard focus, light and dark colours, and a shape and label per risk level.
+- Interface in Galician, Spanish and English, from a selector at the top right that starts in the system language. Analysis texts (risk factors and recommendations) are returned as keys and translated.
+- The application menu is removed on Windows and Linux; macOS keeps the standard app, edit and window menus.
+- Hidden activities and assignments that do not accept submissions yet are no longer counted as missing work; the course view says how many were left out. Announcement forums no longer count for forum participation.
+- Last access is the last access to the course (`lastcourseaccess`) instead of the last access to the whole site.

@@ -61,3 +61,67 @@ tr.detail > td { background: color-mix(in srgb, CanvasText 3%, transparent); }
 .risk.low { background: #dcf3e8; color: #0b5d3b; }
 .student-detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; padding: 8px 0; }
 .student-detail h3 { font-size: 15px; margin: 12px 0 4px; }
+
+/* Language selector, top right on every screen */
+.topbar { position: absolute; top: 12px; right: 16px; z-index: 10; }
+.topbar select { font: inherit; padding: 4px 8px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Charts. Colours from the reference data-visualization palette, light and dark. */
+:root {
+  --viz-surface: #fcfcfb;
+  --viz-ink: #0b0b0b;
+  --viz-ink-2: #52514e;
+  --viz-muted: #898781;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-series-1: #2a78d6;
+  --viz-series-2: #eb6834;
+  --viz-series-3: #1baf7a;
+  --viz-good: #0ca30c;
+  --viz-warning: #fab219;
+  --viz-critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --viz-surface: #1a1a19;
+    --viz-ink: #f0efec;
+    --viz-ink-2: #c3c2b7;
+    --viz-grid: #2c2c2a;
+    --viz-axis: #383835;
+    --viz-series-1: #3987e5;
+    --viz-series-2: #d95926;
+    --viz-series-3: #199e70;
+  }
+}
+.chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; align-items: start; }
+.chart { margin: 0 0 16px; padding: 14px 16px; background: var(--viz-surface); border: 1px solid color-mix(in srgb, var(--viz-ink) 10%, transparent); border-radius: 10px; color: var(--viz-ink); }
+.chart figcaption { font-weight: 600; margin-bottom: 8px; }
+.chart-body { position: relative; }
+.chart-note { margin: 6px 0 0; font-size: 13px; color: var(--viz-ink-2); }
+.chart svg { display: block; overflow: visible; }
+.chart .grid { stroke: var(--viz-grid); stroke-width: 1; }
+.chart .axis { stroke: var(--viz-axis); stroke-width: 1; }
+.chart .reference { stroke: var(--viz-ink-2); stroke-width: 1; stroke-dasharray: 4 3; }
+.chart .crosshair { stroke: var(--viz-muted); stroke-width: 1; }
+.chart .tick { font-size: 11px; fill: var(--viz-muted); font-variant-numeric: tabular-nums; }
+.chart .axis-title { font-size: 12px; fill: var(--viz-ink-2); }
+.chart .value { font-size: 12px; fill: var(--viz-ink-2); font-variant-numeric: tabular-nums; }
+.chart .point { cursor: pointer; outline: none; }
+.chart .point:focus-visible circle:first-child { stroke: var(--viz-ink); stroke-width: 2; }
+.chart [tabindex]:focus-visible { outline: 2px solid var(--viz-series-1); outline-offset: 1px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 8px; font-size: 13px; color: var(--viz-ink-2); }
+.legend span, .risk-labels span, .tip-row { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.tooltip { position: absolute; transform: translate(-50%, calc(-100% - 12px)); pointer-events: none; z-index: 5; min-width: 120px; max-width: 280px; padding: 6px 10px; border-radius: 6px; background: var(--viz-ink); color: var(--viz-surface); font-size: 12px; line-height: 1.45; box-shadow: 0 2px 8px rgb(0 0 0 / 0.2); }
+.tooltip .tip-row { display: flex; }
+.risk-bar { display: flex; gap: 2px; height: 22px; }
+.risk-segment { min-width: 6px; border-radius: 4px; }
+.risk-labels { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 14px; color: var(--viz-ink-2); }
+.percent-bars { display: grid; gap: 4px; max-height: 420px; overflow-y: auto; }
+.percent-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(120px, 2fr) 44px; gap: 8px; align-items: center; font-size: 13px; }
+.percent-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.percent-track { position: relative; height: 10px; background: var(--viz-grid); border-radius: 4px; }
+.percent-fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
+.percent-pass { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--viz-ink-2); }
+.percent-value { text-align: right; font-variant-numeric: tabular-nums; color: var(--viz-ink-2); }

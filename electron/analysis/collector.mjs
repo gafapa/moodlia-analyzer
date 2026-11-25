@@ -162,8 +162,23 @@ export class CourseCollector {
       this.read('get_course_pages', { course_ids: courseIds }, {}),
       this.read('get_course_resources', { course_ids: courseIds }, {})
     ]);
-    const assignments = asList(asList(asRecord(assignmentsPayload).courses).find((entry) => asNumber(entry.id) === courseId)?.assignments);
-    const quizzes = asList(asRecord(quizzesPayload).quizzes);
+    // Activities students cannot see yet do not count: hidden modules, and assignments that
+    // do not accept submissions yet. Without the course contents nothing is left out.
+    const hiddenModules = new Set(asList(contents).flatMap((section) => asList(asRecord(section).modules))
+      .filter((module) => module.visible === 0 || module.visible === false)
+      .map((module) => asNumber(module.id)));
+    const now = Math.floor(Date.now() / 1000);
+    const allAssignments = asList(asList(asRecord(assignmentsPayload).courses).find((entry) => asNumber(entry.id) === courseId)?.assignments);
+    const allQuizzes = asList(asRecord(quizzesPayload).quizzes);
+    const isHidden = (/** @type {Record<string, any>} */ activity, /** @type {string} */ field) => hiddenModules.has(asNumber(activity[field]));
+    const assignments = allAssignments.filter((assignment) => !isHidden(assignment, 'cmid') && !((asNumber(assignment.allowsubmissionsfromdate) ?? 0) > now));
+    const quizzes = allQuizzes.filter((quiz) => !isHidden(quiz, 'coursemodule'));
+    // Announcement forums are left out of participation: only teachers post there.
+    const visibleForums = asList(forums).filter((forum) => !isHidden(forum, 'cmid') && forum.type !== 'news');
+    const excluded = {
+      hidden: allAssignments.filter((assignment) => isHidden(assignment, 'cmid')).length + allQuizzes.length - quizzes.length + asList(forums).filter((forum) => isHidden(forum, 'cmid')).length,
+      notOpenYet: allAssignments.filter((assignment) => !isHidden(assignment, 'cmid') && (asNumber(assignment.allowsubmissionsfromdate) ?? 0) > now).length
+    };
     const pages = asList(asRecord(pagesPayload).pages);
     const resources = asList(asRecord(resourcesPayload).resources);
     const assignmentIds = assignments.map((assignment) => asNumber(assignment.id)).filter((id) => id !== null);
@@ -183,7 +198,7 @@ export class CourseCollector {
     const assignmentGradesByAssign = byAssignment(assignmentGradesPayload, 'grades');
 
     report('Loading forum activity', 35);
-    const postsByUser = await this.collectForumPosts(forums);
+    const postsByUser = await this.collectForumPosts(visibleForums);
 
     report('Loading enrolled users', 50);
     const enrolled = await this.withRoles(courseId, asList(await this.read('get_enrolled_users', { course_id: courseId }, [])));
@@ -213,9 +228,10 @@ export class CourseCollector {
         id: userId,
         fullname: text(user.fullname, `User ${userId}`),
         email: text(user.email),
-        lastaccess: asNumber(user.lastaccess) ?? 0,
+        // Last access to this course; Moodle's lastaccess is the last access to the whole site.
+        lastaccess: 'lastcourseaccess' in user ? asNumber(user.lastcourseaccess) ?? 0 : asNumber(user.lastaccess) ?? 0,
+        lastSiteAccess: asNumber(user.lastaccess) ?? 0,
         firstaccess: asNumber(user.firstaccess) ?? 0,
-        enrolled: asNumber(user.lastcourseaccess) ?? 0,
         country: text(user.country),
         profileimageurl: text(user.profileimageurl),
         grades: parseGradeItems(gradesByUser.get(userId) ?? {}),
@@ -235,7 +251,8 @@ export class CourseCollector {
       students,
       assignments,
       quizzes,
-      forums: asList(forums),
+      forums: visibleForums,
+      excluded,
       contents: asList(contents),
       pages,
       resources,

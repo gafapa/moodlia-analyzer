@@ -4,6 +4,23 @@ export type LanguageCode = "es" | "en";
 export type RiskLevel = "high" | "medium" | "low";
 export type TrendState = "improving" | "stable" | "declining";
 
+/** Texts the analysis produces, as a key and values; the interface translates them. */
+export type AnalysisMessageKey =
+  | "risk.noAccess" | "risk.limitedAccess" | "risk.fewSubmissions" | "risk.lowSubmissions"
+  | "risk.gradeWellBelow" | "risk.gradeNearPass" | "risk.gradeDeclining" | "risk.engagementCritical"
+  | "risk.engagementLow" | "risk.lowCompletion" | "risk.noForum" | "risk.fewQuizzes" | "risk.lowQuizCoverage"
+  | "student.reenter" | "student.pendingAssignments" | "student.latePlan" | "student.incompleteActivities"
+  | "student.quizBelowTarget" | "student.quizDeclining" | "student.useForums" | "student.gradeDeclining" | "student.stable"
+  | "teacher.highRisk" | "teacher.inactive" | "teacher.lowEngagement" | "teacher.lowSubmission"
+  | "teacher.forumSilence" | "teacher.noForums";
+
+export interface AnalysisMessage {
+  key: AnalysisMessageKey;
+  values?: Record<string, number>;
+}
+
+export const msg = (key: AnalysisMessageKey, values?: Record<string, number>): AnalysisMessage => (values ? { key, values } : { key });
+
 export interface CourseSummary {
   id: number;
   fullname?: string;
@@ -45,7 +62,10 @@ export interface StudentCourseData {
   id: number;
   fullname: string;
   email?: string;
+  /** Last access to the course (Moodle's lastcourseaccess when available). */
   lastaccess?: number;
+  /** Last access to the whole site. */
+  lastSiteAccess?: number;
   firstaccess?: number;
   enrolled?: number;
   country?: string;
@@ -75,6 +95,8 @@ export interface CollectedCourseData {
   logs: Record<string, unknown>[];
   /** Sources this token could not read, by operation, with the reason. */
   unavailable?: Record<string, string>;
+  /** Activities left out because students cannot see them yet. */
+  excluded?: { hidden: number; notOpenYet: number };
   collectedAt: string;
 }
 
@@ -130,8 +152,8 @@ export interface StudentAnalysis extends StudentCourseData {
   metrics: StudentMetrics;
   prediction: GradePrediction;
   riskLevel: RiskLevel;
-  riskFactors: string[];
-  recommendations: string[];
+  riskFactors: AnalysisMessage[];
+  recommendations: AnalysisMessage[];
 }
 
 export interface CourseMetrics {
@@ -157,7 +179,7 @@ export interface CourseMetrics {
 export interface CourseAnalysis extends CollectedCourseData {
   students: StudentAnalysis[];
   courseMetrics: CourseMetrics;
-  teacherRecommendations: string[];
+  teacherRecommendations: AnalysisMessage[];
   passThresholdPct: number;
   logsAvailable: boolean;
   mlUsed: boolean;
