@@ -75,35 +75,6 @@ function RiskMark({ risk, x, y, size }: { risk: Risk; x: number; y: number; size
 
 const ticks = [0, 25, 50, 75, 100];
 
-/** 100% bar of students by risk level. */
-export function RiskBar({ title, counts, labels }: { title: string; counts: Record<Risk, number>; labels: Record<Risk, string> }) {
-  const tooltip = useTooltip();
-  const total = counts.high + counts.medium + counts.low;
-  const order: Risk[] = ['high', 'medium', 'low'];
-  return (
-    <Frame title={title} tooltip={tooltip}>
-      <div className="risk-bar">
-        {order.filter((risk) => counts[risk] > 0).map((risk) => (
-          <div
-            key={risk}
-            className="risk-segment"
-            tabIndex={0}
-            style={{ flexGrow: counts[risk], background: RISK_COLOR[risk] }}
-            onPointerMove={(event) => tooltip.pointer(event, <><strong>{labels[risk]}</strong>: {counts[risk]} ({Math.round((counts[risk] / total) * 100)}%)</>)}
-            onFocus={(event) => tooltip.focus(event, <><strong>{labels[risk]}</strong>: {counts[risk]}</>)}
-            onBlur={tooltip.hide}
-          />
-        ))}
-      </div>
-      <div className="risk-labels">
-        {order.map((risk) => (
-          <span key={risk}><Swatch color={RISK_COLOR[risk]} shape={risk} /> {labels[risk]} <strong>{counts[risk]}</strong></span>
-        ))}
-      </div>
-    </Frame>
-  );
-}
-
 /** Students per grade range, with the pass mark. */
 export function GradeHistogram({ title, distribution, passMark, passLabel, studentsLabel }: { title: string; distribution: Record<string, number>; passMark: number; passLabel: string; studentsLabel: string }) {
   const { ref, width } = useWidth();
@@ -224,70 +195,20 @@ export function EngagementScatter({ title, points, passMark, labels, onSelect }:
   );
 }
 
-export interface AssignmentColumn { id: number; name: string; dueLabel: string; students: number; onTime: number; late: number }
-
-/** Share of students who submitted each assignment, on time and late, in due-date order. */
-export function AssignmentColumns({ title, columns, labels }: { title: string; columns: AssignmentColumn[]; labels: { onTime: string; late: string; submitted: string } }) {
-  const { ref, width } = useWidth();
-  const tooltip = useTooltip();
-  const height = 220;
-  const margin = { top: 12, right: 12, bottom: 16, left: 44 };
-  const plotW = width - margin.left - margin.right;
-  const plotH = height - margin.top - margin.bottom;
-  const y = (pct: number) => margin.top + plotH - (pct / 100) * plotH;
-  const step = plotW / Math.max(1, columns.length);
-  const gap = step > 6 ? 2 : 1;
-  const barW = Math.max(1, step - gap);
-  const describe = (column: AssignmentColumn) => (
-    <><strong>{column.name}</strong><br />{column.dueLabel}<br />{labels.submitted}: {column.onTime + column.late}/{column.students} · {labels.late}: {column.late}</>
-  );
-  const legend = <><span><Swatch color="var(--viz-series-1)" /> {labels.onTime}</span><span><Swatch color="var(--viz-series-2)" /> {labels.late}</span></>;
-  return (
-    <div ref={ref}>
-      <Frame title={title} legend={legend} tooltip={tooltip}>
-        <svg width={width} height={height} role="img" aria-label={title}>
-          {ticks.map((tick) => (
-            <g key={tick}>
-              <line x1={margin.left} x2={width - margin.right} y1={y(tick)} y2={y(tick)} className="grid" />
-              <text x={margin.left - 6} y={y(tick)} className="tick" textAnchor="end" dominantBaseline="middle">{tick}%</text>
-            </g>
-          ))}
-          {columns.map((column, index) => {
-            const left = margin.left + index * step + gap / 2;
-            const onTimePct = column.students ? (column.onTime / column.students) * 100 : 0;
-            const latePct = column.students ? (column.late / column.students) * 100 : 0;
-            const radius = Math.min(4, barW / 2);
-            const segment = (from: number, to: number, fill: string, rounded: boolean) => {
-              const top = y(to);
-              const bottom = y(from);
-              if (bottom - top < 0.5) return null;
-              const r = rounded ? Math.min(radius, bottom - top) : 0;
-              return <path d={`M${left},${bottom} V${top + r} Q${left},${top} ${left + r},${top} H${left + barW - r} Q${left + barW},${top} ${left + barW},${top + r} V${bottom} Z`} fill={fill} />;
-            };
-            return (
-              <g key={column.id}>
-                {segment(0, onTimePct - (latePct > 0 && barW > 3 ? 0.6 : 0), 'var(--viz-series-1)', latePct === 0)}
-                {segment(onTimePct, onTimePct + latePct, 'var(--viz-series-2)', true)}
-                <rect
-                  x={left} y={margin.top} width={Math.max(barW, 4)} height={plotH} fill="transparent" tabIndex={0}
-                  onPointerMove={(event) => tooltip.pointer(event, describe(column))}
-                  onFocus={(event) => tooltip.focus(event, describe(column))}
-                  onBlur={tooltip.hide}
-                />
-              </g>
-            );
-          })}
-          <line x1={margin.left} x2={width - margin.right} y1={y(0)} y2={y(0)} className="axis" />
-        </svg>
-      </Frame>
-    </div>
-  );
-}
-
 export interface LineSeries { key: string; label: string; color: string; values: number[] }
 
 /** Counts per week for a few series, with a crosshair tooltip. */
-export function WeeklyLines({ title, weeks, series, weekLabel }: { title: string; weeks: string[]; series: LineSeries[]; weekLabel: (index: number) => string }) {
+export function WeeklyLines({ title, weeks, series, weekLabel, maxValue, reference, format = String }: {
+  title: string;
+  weeks: string[];
+  series: LineSeries[];
+  weekLabel: (index: number) => string;
+  /** Fixed top of the scale, such as 100 for percentages. */
+  maxValue?: number;
+  /** A dashed reference line, such as the pass mark. */
+  reference?: { value: number; label: string };
+  format?: (value: number) => string;
+}) {
   const { ref, width } = useWidth();
   const tooltip = useTooltip();
   const [hover, setHover] = useState<number | null>(null);
@@ -295,7 +216,7 @@ export function WeeklyLines({ title, weeks, series, weekLabel }: { title: string
   const margin = { top: 16, right: 16, bottom: 28, left: 36 };
   const plotW = width - margin.left - margin.right;
   const plotH = height - margin.top - margin.bottom;
-  const max = Math.max(1, ...series.flatMap((entry) => entry.values));
+  const max = maxValue ?? Math.max(1, ...series.flatMap((entry) => entry.values));
   const x = (index: number) => margin.left + (weeks.length > 1 ? (index / (weeks.length - 1)) * plotW : plotW / 2);
   const y = (value: number) => margin.top + plotH - (value / max) * plotH;
   const yTicks = [...new Set([0, Math.round(max / 2), max])];
@@ -307,7 +228,7 @@ export function WeeklyLines({ title, weeks, series, weekLabel }: { title: string
     const clamped = Math.max(0, Math.min(weeks.length - 1, index));
     setHover(clamped);
     tooltip.pointer(event, (
-      <><strong>{weekLabel(clamped)}</strong>{series.map((entry) => <span key={entry.key} className="tip-row"><Swatch color={entry.color} shape="line" /> {entry.label}: {entry.values[clamped]}</span>)}</>
+      <><strong>{weekLabel(clamped)}</strong>{series.map((entry) => <span key={entry.key} className="tip-row"><Swatch color={entry.color} shape="line" /> {entry.label}: {format(entry.values[clamped])}</span>)}</>
     ));
   };
   return (
@@ -317,9 +238,15 @@ export function WeeklyLines({ title, weeks, series, weekLabel }: { title: string
           {yTicks.map((tick) => (
             <g key={tick}>
               <line x1={margin.left} x2={width - margin.right} y1={y(tick)} y2={y(tick)} className="grid" />
-              <text x={margin.left - 6} y={y(tick)} className="tick" textAnchor="end" dominantBaseline="middle">{tick}</text>
+              <text x={margin.left - 6} y={y(tick)} className="tick" textAnchor="end" dominantBaseline="middle">{format(tick)}</text>
             </g>
           ))}
+          {reference && (
+            <g>
+              <line x1={margin.left} x2={width - margin.right} y1={y(reference.value)} y2={y(reference.value)} className="reference" />
+              <text x={width - margin.right} y={y(reference.value) - 5} className="tick" textAnchor="end">{reference.label}</text>
+            </g>
+          )}
           {weeks.map((label, index) => (index % labelEvery === 0 ? (
             <text key={`${label}-${index}`} x={x(index)} y={height - 8} className="tick" textAnchor={index === 0 ? 'start' : index === weeks.length - 1 ? 'end' : 'middle'}>{label}</text>
           ) : null))}
@@ -335,32 +262,5 @@ export function WeeklyLines({ title, weeks, series, weekLabel }: { title: string
         </svg>
       </Frame>
     </div>
-  );
-}
-
-/** Horizontal bars, one per item, with the pass mark. */
-export function PercentBars({ title, rows, passMark, emptyLabel }: { title: string; rows: Array<{ key: string; label: string; pct: number | null; detail: string }>; passMark: number; emptyLabel: string }) {
-  const tooltip = useTooltip();
-  return (
-    <Frame title={title} tooltip={tooltip}>
-      {rows.length === 0 ? <p className="muted">{emptyLabel}</p> : (
-        <div className="percent-bars">
-          {rows.map((row) => (
-            <div key={row.key} className="percent-row" tabIndex={0}
-              onPointerMove={(event) => tooltip.pointer(event, <><strong>{row.label}</strong><br />{row.detail}</>)}
-              onFocus={(event) => tooltip.focus(event, <><strong>{row.label}</strong><br />{row.detail}</>)}
-              onBlur={tooltip.hide}
-            >
-              <span className="percent-label">{row.label}</span>
-              <span className="percent-track">
-                {row.pct !== null && <span className="percent-fill" style={{ width: `${Math.max(0, Math.min(100, row.pct))}%`, background: row.pct < passMark ? 'var(--viz-critical)' : 'var(--viz-series-1)' }} />}
-                <span className="percent-pass" style={{ left: `${passMark}%` }} />
-              </span>
-              <span className="percent-value">{row.pct === null ? '—' : `${Math.round(row.pct)}%`}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </Frame>
   );
 }

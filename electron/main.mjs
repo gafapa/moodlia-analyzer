@@ -52,7 +52,10 @@ function registerHandlers() {
   handle('profiles:save', (input) => profiles.save(input ?? {}));
   handle('profiles:remove', (id) => profiles.remove(String(id)));
   // How the site gives Moodle app tokens: username and password, or its own sign-in page.
-  handle('profiles:signInMethod', async (url) => signInMethod(await readMobileConfig(normalizeSiteUrl(String(url ?? '')).url)));
+  handle('profiles:signInMethod', async (url) => {
+    const config = await readMobileConfig(normalizeSiteUrl(String(url ?? '')).url);
+    return { method: signInMethod(config), siteName: config.siteName };
+  });
   // Gets a Moodle app token and saves it as the core web services token of the profile.
   // The password is only sent to the Moodle site; the token stays in the main process.
   handle('profiles:signIn', async (input) => {

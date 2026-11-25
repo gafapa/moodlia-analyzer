@@ -9,7 +9,7 @@
 - Course analysis: a collector in the main process reads one course through core web services with progress updates, and the student metrics, grade prediction, risk and recommendation analysis of `moodlia-analyzer-web` runs on the result. Sources the token cannot read are reported and counted as empty.
 - Fixes over `moodlia-analyzer-web`: quiz attempts are read per student instead of only the connected user's; attempt grades are scaled from `sumgrades`, so quiz averages are no longer empty; course profiles use the `userlist` structure; current forum posts are normalized; grades come from one course-wide call.
 - Every read names its provider (`moodlia` or `core`), because both contracts share operation names with different parameters.
-- Provisional interface to exercise the connection layer.
+- A first interface to exercise the connection layer, since replaced by the redesign below.
 - Unit tests, end-to-end tests against a fake Moodle REST endpoint (connection with and without the plugin, and a full course collection), Vitest analysis tests, and a startup smoke check.
 - Installers built with `electron-builder`: Windows x64 (installer and zip), macOS Apple silicon and Intel (dmg and zip, signed ad hoc), Linux x64 (AppImage and tar.gz). Not code-signed yet.
 - `npm run package:dir`, `npm run package` and `npm run smoke:packaged`; the smoke check can run on the packaged app.
@@ -25,3 +25,6 @@
 - The application menu is removed on Windows and Linux; macOS keeps the standard app, edit and window menus.
 - Hidden activities and assignments that do not accept submissions yet are no longer counted as missing work; the course view says how many were left out. Announcement forums no longer count for forum participation.
 - Last access is the last access to the course (`lastcourseaccess`) instead of the last access to the whole site.
+- Redesigned interface: a sign-in screen; a course list with search, period filter and a side-by-side comparison of analysed courses; a course panel in tabs (Summary, Students, Submissions, Grading, Pace, Settings) with a short explanation each; and a student detail in tabs (summary, assignments and grades, evolution). Bundled Plus Jakarta Sans and Inter fonts.
+- New analyses: submissions waiting for a grade and the oldest, time from submission to grade, share of grades with written feedback, drafts not submitted, who submitted each assignment, assignments under half submitted, submissions by weekday and time of day, visible content by type, course setting checks, and a student's grade over time and compared with the class. Assignments set to no grade never wait for a grade.
+- The course list includes each course's dates, completion setting and last access; the site check before signing in returns the site name, which names the saved site.

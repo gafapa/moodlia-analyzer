@@ -54,6 +54,12 @@ interface I18n {
   error(error: { code: string; message: string }): string;
   date(seconds: number | null | undefined): string;
   dateTime(value: string | number | Date): string;
+  /** "5 minutes ago" for a moment in the past. */
+  relative(value: string | number | Date): string;
+  /** Today, yesterday, n days ago, or never, from days since the last access. */
+  lastAccess(days: number): string;
+  /** Short weekday names, Monday first. */
+  weekdays(): string[];
 }
 
 const Context = createContext<I18n | null>(null);
@@ -78,7 +84,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value = useMemo<I18n>(() => {
     const catalog = CATALOGS[language];
     const locale = LOCALES[language];
-    const t = (key: MessageKey, values?: Record<string, string | number>) => format(catalog[key] ?? en[key], values);
+    // An unknown key comes back as itself, so callers can fall back to their own text.
+    const t = (key: MessageKey, values?: Record<string, string | number>) => format(catalog[key] ?? en[key] ?? key, values);
     return {
       language,
       setLanguage,
@@ -89,7 +96,18 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         return key in catalog ? t(key) : error.message;
       },
       date: (seconds) => (seconds ? new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(seconds * 1000)) : t('access.never')),
-      dateTime: (input) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(input))
+      dateTime: (input) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(input)),
+      relative: (input) => {
+        const seconds = Math.round((new Date(input).getTime() - Date.now()) / 1000);
+        const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+        const abs = Math.abs(seconds);
+        if (abs < 60) return format.format(0, 'minute');
+        if (abs < 3600) return format.format(Math.round(seconds / 60), 'minute');
+        if (abs < 86400) return format.format(Math.round(seconds / 3600), 'hour');
+        return format.format(Math.round(seconds / 86400), 'day');
+      },
+      lastAccess: (days) => (days >= 999 ? t('access.never') : days === 0 ? t('access.today') : days === 1 ? t('access.yesterday') : t('access.daysAgo', { days })),
+      weekdays: () => Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(Date.UTC(2026, 10, 2 + index, 12))))
     };
   }, [language, setLanguage]);
 
@@ -100,17 +118,4 @@ export function useI18n(): I18n {
   const value = useContext(Context);
   if (!value) throw new Error('useI18n needs I18nProvider.');
   return value;
-}
-
-/** Selector to change the language at any time. */
-export function LanguageSelect() {
-  const { language, setLanguage, t } = useI18n();
-  return (
-    <label className="language-select">
-      <span className="visually-hidden">{t('language.label')}</span>
-      <select value={language} onChange={(event) => setLanguage(event.target.value as Language)}>
-        {LANGUAGES.map((entry) => <option key={entry.code} value={entry.code}>{entry.name}</option>)}
-      </select>
-    </label>
-  );
 }

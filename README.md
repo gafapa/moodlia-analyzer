@@ -14,13 +14,21 @@ What works:
 
 - Saved Moodle sites with tokens encrypted by the operating system keychain.
 - Connection with or without the MoodlIA plugin, with the providers detected on connect.
-- The list of the user's courses.
-- Course analysis: data collection through core Moodle web services, then the engagement, grade, risk and recommendation analysis carried over from `moodlia-analyzer-web`. The course view shows summary cards; charts of risk, the grade distribution, engagement against grade per student, submissions per assignment on time and late, and student activity per week; recommendations; a sortable student table with per-student risk factors, recommendations, indicators and a chart of grade items; and per-assignment, quiz and forum tables.
+- **Sign-in screen**: saved sites, and a new site by signing in as in the Moodle app or with a token.
+- **My courses**: the site's courses with search and a current, finished or all filter; each analysed course shows its students, average grade, submissions waiting for a grade and risk, and two or more analysed courses are compared side by side.
+- **Course panel**, in tabs so each view shows a few things, each with a sentence on what it shows:
+  - *Summary*: four indicators, a "needs your attention" list that opens the tab concerned, and the risk level with the students to look at first.
+  - *Students*: a sortable, searchable table with filters (medium or high risk, with drafts, no access in 7 days), engagement against grade, and the grade distribution.
+  - *Submissions*: who submitted each assignment (graded, waiting for a grade, draft, not submitted), drafts not submitted, and assignments under half submitted.
+  - *Grading*: submissions waiting for a grade and the oldest, time from submission to grade, share of grades with written feedback, and the assignments with the lowest class average.
+  - *Pace*: student activity per week, and submissions by weekday and time of day.
+  - *Settings*: checks of course settings that limit what can be measured (no due dates, completion on but unused, no discussion forum, written feedback) and the visible content by type.
+- **Student detail**, in three tabs: why the risk level and what can be done; the assignments with their status and grade, and the lowest grades; and the grade over time against the class.
 - Interface in Galician, Spanish and English, chosen from the selector at the top right; it starts in the system language. The analysis returns its texts as keys with values, so they are translated too.
 - No application menu on Windows and Linux; macOS keeps the standard app, edit and window menus.
 - Read-only access to any read operation of the canonical contracts.
 
-The interface is provisional: it exists to exercise the connection and the analysis and will be redesigned.
+The interface follows the design on the MoodlIA Analyzer redesign canvas: one teal accent, Plus Jakarta Sans headings and Inter text (both bundled with the app, since the Content Security Policy allows no remote fonts), and the reference data-visualization palette for charts. It has a light theme only for now.
 
 ## Getting started
 
@@ -61,13 +69,13 @@ One token is enough when its service has everything the app uses: the Moodle app
 | Main process | `electron/main.mjs` | Window, security settings, and the IPC handlers the interface calls. |
 | Moodle session | `electron/moodle/session.mjs` | Read-only session over the adaptive adapter of the [`moodlia`](https://www.npmjs.com/package/moodlia) package, which builds on [`moodle-core-cli`](https://www.npmjs.com/package/moodle-core-cli). |
 | Course collector | `electron/analysis/collector.mjs` | Reads one course through core web services and returns the data the analysis expects. |
-| Analysis | `src/analysis/` | Student metrics, grade prediction, risk and recommendations, per-activity summaries and chart data (TypeScript, no Moodle access). |
-| Charts | `src/charts/` | SVG charts with hover tooltips and light and dark colours; risk levels carry a shape and a label as well as a colour. |
+| Analysis | `src/analysis/` | Student metrics, grade prediction, risk and recommendations (`courseAnalyzer.ts`, `metrics.ts`); per-activity summaries; chart data; and `insights.ts`: the grading queue and time to grade, feedback, drafts, who submitted each assignment, submissions by weekday and hour, content by type, course setting checks, and a student's grade over time against the class. TypeScript, no Moodle access. |
+| Charts | `src/charts/`, `src/ui.tsx` | SVG charts (grade distribution, engagement against grade, lines over time) with hover tooltips, and HTML bars and grids; risk levels carry a shape and a label as well as a colour. |
 | Translations | `src/i18n/` | Galician, Spanish and English catalogs; `en.ts` defines the keys and the typechecker requires every catalog to have all of them. |
 | Moodle app token | `electron/moodle/mobile-token.mjs`, `electron/sign-in-window.mjs` | Reads the site's mobile settings, then gets the token with username and password through `login/token.php` or with the site's own sign-in page through `admin/tool/mobile/launch.php`. |
 | Profiles | `electron/profiles.mjs` | Saved sites; tokens encrypted with Electron `safeStorage`. |
 | Bridge | `electron/preload.cjs` | The only functions the page can call: `profiles.list/save/signInMethod/signIn/remove`, `session.connect/disconnect/courses/read` and `analysis.collect/onProgress`. |
-| Interface | `src/` | React and TypeScript, built with Vite. |
+| Interface | `src/App.tsx`, `src/screens/` | React and TypeScript, built with Vite: the sign-in, course list, course panel and student screens, and the state they share (the connected site, its courses and the analyses collected in the session). |
 
 Moodle requests are made by Node in the main process, so browser CORS rules do not apply and no browser extension is needed.
 
@@ -160,7 +168,7 @@ The installers are not code-signed yet: Windows SmartScreen warns about an unkno
 1. Check the collector against a real Moodle site with and without the plugin.
 2. A collector path that uses the MoodlIA plugin's reports (course progress, quiz results, grades in bulk) when the token offers them.
 3. Port the quiz review and the AI report from `moodlia-analyzer-web`.
-4. Design the interface.
+4. A dark theme.
 5. Code signing for Windows and notarization for macOS, and an app icon.
 6. Check what `moodlia-analyzer-desktop` offers that this app lacks, then retire both earlier analyzers.
 

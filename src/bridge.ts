@@ -39,6 +39,11 @@ export interface CourseSummary {
   shortName: string;
   fullName: string;
   visible: boolean;
+  startDate: number | null;
+  endDate: number | null;
+  enrolledCount: number | null;
+  enableCompletion: boolean;
+  lastAccess: number | null;
 }
 
 interface AnalyzerBridge {
@@ -46,7 +51,7 @@ interface AnalyzerBridge {
     list(): Promise<Result<ProfileSummary[]>>;
     save(profile: ProfileInput): Promise<Result<{ id: string; tokensStored: boolean }>>;
     /** Whether the site gives Moodle app tokens with username and password or through its sign-in page. */
-    signInMethod(url: string): Promise<Result<'password' | 'browser'>>;
+    signInMethod(url: string): Promise<Result<{ method: 'password' | 'browser'; siteName: string }>>;
     /** Gets a Moodle app token (with the password, or the site's sign-in page without it) and saves it as the core token. */
     signIn(profile: ProfileInput & { username?: string; password?: string }): Promise<Result<{ id: string; tokensStored: boolean }>>;
     remove(id: string): Promise<Result<void>>;
@@ -58,7 +63,7 @@ interface AnalyzerBridge {
     read(provider: 'moodlia' | 'core', operation: string, parameters?: Record<string, unknown>): Promise<Result<unknown>>;
   };
   analysis: {
-    collect(courseId: number, course?: CourseSummary): Promise<Result<CollectedCourseData>>;
+    collect(courseId: number, course?: Record<string, unknown>): Promise<Result<CollectedCourseData>>;
     onProgress(listener: (progress: { courseId: number; message: string; percent: number }) => void): () => void;
   };
 }

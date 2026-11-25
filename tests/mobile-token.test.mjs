@@ -48,7 +48,7 @@ test('tokens signed for another site or passport are refused', () => {
 
 test('the public configuration gives the site address Moodle signs with', async () => {
   const fake = fakeFetch([{ error: false, data: { wwwroot: 'https://moodle.example.edu/', launchurl: `${SITE}/admin/tool/mobile/launch.php`, enablemobilewebservice: 1 } }]);
-  assert.deepEqual(await readMobileConfig(SITE, fake.impl), { wwwroot: SITE, launchUrl: `${SITE}/admin/tool/mobile/launch.php`, typeOfLogin: 1 });
+  assert.deepEqual(await readMobileConfig(SITE, fake.impl), { wwwroot: SITE, launchUrl: `${SITE}/admin/tool/mobile/launch.php`, typeOfLogin: 1, siteName: '' });
   assert.equal(fake.calls[0][0], `${SITE}/lib/ajax/service-nologin.php?info=tool_mobile_get_public_config`);
   assert.equal(fake.calls[0][1][0].methodname, 'tool_mobile_get_public_config');
 });
@@ -65,7 +65,7 @@ test('a site with the Moodle app service off is reported before the sign-in open
 
 test('sites without the public configuration fall back to the entered address', async () => {
   for (const fake of [fakeFetch(new Error('offline')), fakeFetch([{ error: true, exception: {} }]), fakeFetch(null, { ok: false })]) {
-    assert.deepEqual(await readMobileConfig(SITE, fake.impl), { wwwroot: SITE, launchUrl: `${SITE}/admin/tool/mobile/launch.php`, typeOfLogin: 1 });
+    assert.deepEqual(await readMobileConfig(SITE, fake.impl), { wwwroot: SITE, launchUrl: `${SITE}/admin/tool/mobile/launch.php`, typeOfLogin: 1, siteName: '' });
   }
 });
 

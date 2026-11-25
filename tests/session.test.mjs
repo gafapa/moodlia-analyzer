@@ -76,7 +76,7 @@ test('each read goes to the provider it names', async () => {
   await session.read('moodlia', 'get_course_progress_report', { course_id: 3 });
   assert.deepEqual(calls.at(-1), ['moodlia', 'get_course_progress_report', { course_id: 3 }]);
   await assert.rejects(session.read('moodlia', 'get_user_courses', { user_id: 7 }), { code: 'operation_unavailable' });
-  assert.deepEqual(await session.listCourses(), [{ id: 3, shortName: 'BIO', fullName: 'Biology', visible: true }]);
+  assert.deepEqual(await session.listCourses(), [{ id: 3, shortName: 'BIO', fullName: 'Biology', visible: true, startDate: null, endDate: null, enrolledCount: null, enableCompletion: false, lastAccess: null }]);
   assert.deepEqual(calls.at(-1), ['core', 'get_user_courses', { user_id: 7 }]);
 });
 

@@ -1,198 +1,152 @@
-// Provisional interface to exercise the connection layer. The final interface is still
-// to be designed; keep product logic out of these components.
-import { useEffect, useState, type FormEvent } from 'react';
-import { analyzer, type CourseSummary, type ProfileSummary, type SiteSummary } from './bridge';
-import { CourseView } from './CourseView';
-import { LanguageSelect, useI18n } from './i18n';
+// The app's screens and the state they share: the saved sites, the connected site, its courses,
+// and the analyses collected in this session.
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { analyzer, type CourseSummary, type ProfileSummary, type Result, type SiteSummary } from './bridge';
+import { CourseAnalyzer } from './analysis/courseAnalyzer';
+import { courseInsights, type CourseInsights } from './analysis/insights';
+import type { CourseAnalysis } from './analysis/types';
+import { useI18n } from './i18n';
+import { Course, type Tab } from './screens/Course';
+import { Courses } from './screens/Courses';
+import { SignIn } from './screens/SignIn';
+import { Student } from './screens/Student';
 
-export function App() {
-  return (
-    <>
-      <div className="topbar"><LanguageSelect /></div>
-      <Workspace />
-    </>
-  );
+const PASS_THRESHOLD_PCT = 50;
+
+export interface Analysed {
+  analysis: CourseAnalysis;
+  insights: CourseInsights;
+  collectedAt: string;
 }
 
-function Workspace() {
+type View =
+  | { name: 'signin' }
+  | { name: 'courses' }
+  | { name: 'course'; course: CourseSummary; tab: Tab }
+  | { name: 'student'; course: CourseSummary; tab: Tab; studentId: number };
+
+export function App() {
   const { t, error: errorText } = useI18n();
+  const [view, setView] = useState<View>({ name: 'signin' });
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
-  const emptyForm = { id: '', name: '', url: '', token: '', coreToken: '', username: '', password: '' };
-  const [form, setForm] = useState(emptyForm);
-  // How the site gives Moodle app tokens, asked when the user first signs in.
-  const [method, setMethod] = useState<'password' | 'browser' | null>(null);
   const [site, setSite] = useState<SiteSummary | null>(null);
   const [courses, setCourses] = useState<CourseSummary[]>([]);
+  const [analysed, setAnalysed] = useState<Record<number, Analysed>>({});
+  const [progress, setProgress] = useState<Record<number, { message: string; percent: number }>>({});
+  const [errors, setErrors] = useState<Record<number, string>>({});
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [selected, setSelected] = useState<CourseSummary | null>(null);
+  const collecting = useRef(new Set<number>());
 
-  const refreshProfiles = async () => {
+  const refreshProfiles = useCallback(async () => {
     const result = await analyzer().profiles.list();
     if (result.ok) setProfiles(result.value);
-  };
+  }, []);
 
-  useEffect(() => { void refreshProfiles(); }, []);
+  useEffect(() => { void refreshProfiles(); }, [refreshProfiles]);
+  useEffect(() => analyzer().analysis.onProgress((update) => {
+    setProgress((current) => ({ ...current, [update.courseId]: { message: update.message, percent: update.percent } }));
+  }), []);
 
-  const connect = async (request: Parameters<ReturnType<typeof analyzer>['session']['connect']>[0]) => {
+  const connect = async (profileId: string, notice = '') => {
     setBusy(true);
     setMessage('');
-    const result = await analyzer().session.connect(request);
+    const result = await analyzer().session.connect({ profileId });
     if (!result.ok) {
       setMessage(errorText(result.error));
       setBusy(false);
       return;
     }
-    setSite(result.value);
     const list = await analyzer().session.courses();
-    if (list.ok) setCourses(list.value);
-    else setMessage(errorText(list.error));
     setBusy(false);
-  };
-
-  const afterSave = async (saved: Awaited<ReturnType<ReturnType<typeof analyzer>['profiles']['save']>>) => {
-    if (!saved.ok) {
-      setMessage(errorText(saved.error));
-      setBusy(false);
+    if (!list.ok) {
+      setMessage(errorText(list.error));
       return;
     }
-    setForm(emptyForm);
-    setMethod(null);
+    setSite(result.value);
+    setCourses(list.value);
+    setAnalysed({});
+    setErrors({});
+    setMessage(notice);
+    setView({ name: 'courses' });
+  };
+
+  const onSaved = async (saved: Result<{ id: string; tokensStored: boolean }>) => {
     await refreshProfiles();
-    await connect({ profileId: saved.value.id });
-    if (!saved.value.tokensStored) setMessage(t('sites.notEncrypted'));
+    if (saved.ok) await connect(saved.value.id, saved.value.tokensStored ? '' : t('signin.notEncrypted'));
   };
 
-  const saveAndConnect = async (event: FormEvent) => {
-    event.preventDefault();
-    // Enter in the sign-in fields signs in; the manual tokens are saved as they are.
-    if (!form.token && !form.coreToken) {
-      await signIn();
-      return;
-    }
-    setBusy(true);
-    await afterSave(await analyzer().profiles.save({ id: form.id || undefined, name: form.name, url: form.url, token: form.token, coreToken: form.coreToken }));
-  };
-
-  const signIn = async () => {
-    if (!form.name.trim() || !form.url.trim()) {
-      setMessage(t('sites.nameAndAddressFirst'));
-      return;
-    }
-    setBusy(true);
-    let current = method;
-    if (!current) {
-      const asked = await analyzer().profiles.signInMethod(form.url);
-      if (!asked.ok) {
-        setMessage(errorText(asked.error));
-        setBusy(false);
-        return;
-      }
-      current = asked.value;
-      setMethod(current);
-    }
-    if (current === 'password' && (!form.username || !form.password)) {
-      setMessage(t('sites.passwordNeeded'));
-      setBusy(false);
-      return;
-    }
-    setMessage(current === 'browser' ? t('sites.signInOnPage') : t('sites.signingIn'));
-    const result = await analyzer().profiles.signIn({
-      id: form.id || undefined,
-      name: form.name,
-      url: form.url,
-      token: form.token || undefined,
-      ...(current === 'password' ? { username: form.username, password: form.password } : {})
-    });
-    setForm((previous) => ({ ...previous, password: '' }));
-    await afterSave(result);
-  };
-
-  /** Fills the form with a saved site so the user can sign in again. */
-  const signInAgain = (profile: ProfileSummary) => {
-    setForm({ ...emptyForm, id: profile.id, name: profile.name, url: profile.url });
-    setMethod(null);
-    setMessage(t('sites.signInAgainBelow', { name: profile.name }));
-  };
-
-  const disconnect = async () => {
+  const switchSite = async () => {
     await analyzer().session.disconnect();
     setSite(null);
     setCourses([]);
+    setAnalysed({});
+    setView({ name: 'signin' });
   };
 
-  if (site && selected) return <CourseView course={selected} onBack={() => setSelected(null)} />;
+  const collect = async (course: CourseSummary, force = false) => {
+    if (collecting.current.has(course.id) || (!force && analysed[course.id])) return;
+    collecting.current.add(course.id);
+    setErrors((current) => ({ ...current, [course.id]: '' }));
+    setProgress((current) => ({ ...current, [course.id]: { message: '', percent: 0 } }));
+    if (force) setAnalysed((current) => { const next = { ...current }; delete next[course.id]; return next; });
+    const result = await analyzer().analysis.collect(course.id, {
+      id: course.id, fullname: course.fullName, shortname: course.shortName, enablecompletion: course.enableCompletion
+    });
+    collecting.current.delete(course.id);
+    if (!result.ok) {
+      setErrors((current) => ({ ...current, [course.id]: errorText(result.error) }));
+      return;
+    }
+    const analysis = new CourseAnalyzer(PASS_THRESHOLD_PCT).analyze(result.value);
+    setAnalysed((current) => ({ ...current, [course.id]: { analysis, insights: courseInsights(analysis), collectedAt: result.value.collectedAt } }));
+  };
 
-  if (site) {
+  const openCourse = (course: CourseSummary, tab: Tab = 'summary') => {
+    setView({ name: 'course', course, tab });
+    void collect(course);
+  };
+
+  if (!site || view.name === 'signin') {
     return (
-      <main className="shell">
-        <header>
-          <h1>{site.siteName}</h1>
-          <p>
-            {t('site.summary', {
-              release: site.moodleRelease,
-              plugin: site.moodlia.available ? t('site.pluginUsed', { release: site.moodlia.pluginRelease ?? '' }) : t('site.pluginNotUsed'),
-              core: site.core.available ? t('site.coreAvailable') : t('site.coreUnavailable')
-            })}
-          </p>
-          <p className="toolbar"><button type="button" onClick={disconnect}>{t('site.disconnect')}</button></p>
-        </header>
-        {message && <p role="alert">{message}</p>}
-        <h2>{t('site.courses', { count: courses.length })}</h2>
-        <ul>
-          {courses.map((course) => (
-            <li key={course.id}><button type="button" onClick={() => setSelected(course)}>{course.fullName}</button> <small>{course.shortName}</small></li>
-          ))}
-        </ul>
-      </main>
+      <SignIn
+        profiles={profiles}
+        busy={busy}
+        message={message}
+        onConnect={(id) => void connect(id)}
+        onSaved={(saved) => void onSaved(saved)}
+        onRemove={async (id) => { await analyzer().profiles.remove(id); await refreshProfiles(); }}
+      />
+    );
+  }
+
+  if (view.name === 'student' && analysed[view.course.id]) {
+    return <Student entry={analysed[view.course.id]} studentId={view.studentId} courseName={view.course.fullName} onBack={() => setView({ name: 'course', course: view.course, tab: view.tab })} />;
+  }
+
+  if (view.name === 'course' || view.name === 'student') {
+    const course = view.course;
+    return (
+      <Course
+        course={course}
+        siteName={site.siteName}
+        entry={analysed[course.id] ?? null}
+        progress={progress[course.id] ?? null}
+        error={errors[course.id] ?? ''}
+        tab={view.tab}
+        onTab={(tab) => setView({ name: 'course', course, tab })}
+        onBack={() => setView({ name: 'courses' })}
+        onRefresh={() => void collect(course, true)}
+        onOpenStudent={(studentId) => setView({ name: 'student', course, tab: view.tab, studentId })}
+        onSwitchSite={() => void switchSite()}
+      />
     );
   }
 
   return (
-    <main className="shell">
-      <h1>{t('app.name')}</h1>
-      {message && <p role="alert">{message}</p>}
-      {profiles.length > 0 && (
-        <section>
-          <h2>{t('sites.saved')}</h2>
-          <ul>
-            {profiles.map((profile) => (
-              <li key={profile.id}>
-                <button type="button" disabled={busy || !profile.hasToken && !profile.hasCoreToken} onClick={() => connect({ profileId: profile.id })}>
-                  {profile.name}
-                </button>{' '}
-                <small>{profile.url}</small>{' '}
-                <button type="button" disabled={busy} onClick={() => signInAgain(profile)}>{t('sites.signInAgain')}</button>{' '}
-                <button type="button" onClick={async () => { await analyzer().profiles.remove(profile.id); await refreshProfiles(); }}>{t('sites.remove')}</button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      <form onSubmit={saveAndConnect}>
-        <h2>{form.id ? t('sites.signInAgainTo', { name: form.name }) : t('sites.add')}</h2>
-        <label>{t('sites.name')} <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-        <label>{t('sites.address')} <input required type="url" placeholder="https://moodle.example.edu" value={form.url} onChange={(e) => { setForm({ ...form, url: e.target.value }); setMethod(null); }} /></label>
-        {method === 'password' && (
-          <>
-            <label>{t('sites.username')} <input autoComplete="username" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></label>
-            <label>{t('sites.password')} <input type="password" autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
-          </>
-        )}
-        <p>
-          <button type="button" disabled={busy} onClick={signIn}>{t('sites.signIn')}</button>{' '}
-          <small>
-            {method === 'password' ? t('sites.signInPasswordHelp') : t('sites.signInHelp')}
-          </small>
-        </p>
-        <details>
-          <summary>{t('sites.manualTokens')}</summary>
-          <label>{t('sites.token')} <input type="password" autoComplete="off" value={form.token} onChange={(e) => setForm({ ...form, token: e.target.value })} /></label>
-          <label>{t('sites.coreToken')} <input type="password" autoComplete="off" value={form.coreToken} onChange={(e) => setForm({ ...form, coreToken: e.target.value })} /></label>
-          <small>{t('sites.manualHelp')}</small>
-          <button type="submit" disabled={busy}>{busy ? t('sites.connecting') : t('sites.saveAndConnect')}</button>
-        </details>
-      </form>
-    </main>
+    <>
+      {message && <p className="notice" role="status" style={{ margin: 16 }}>{message}</p>}
+      <Courses site={site} courses={courses} analysed={analysed} onOpen={(course) => openCourse(course)} onSwitchSite={() => void switchSite()} />
+    </>
   );
 }

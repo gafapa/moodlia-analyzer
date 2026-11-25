@@ -106,6 +106,7 @@ export function parseGradeItems(userGrade) {
       name: text(item.itemname) || text(item.categoryname, 'Untitled'),
       type: type || undefined,
       modname: text(item.itemmodule) || undefined,
+      instance: asNumber(item.iteminstance) ?? undefined,
       grade: raw,
       gradePct: raw !== null && max > 0 ? (raw / max) * 100 : null,
       maxGrade: max,

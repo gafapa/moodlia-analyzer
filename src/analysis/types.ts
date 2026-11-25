@@ -29,6 +29,7 @@ export interface CourseSummary {
   category?: string | number;
   categoryid?: number | null;
   enrolledusercount?: number;
+  enablecompletion?: boolean;
   [key: string]: unknown;
 }
 
@@ -37,6 +38,8 @@ export interface GradeItem {
   name: string;
   type?: string;
   modname?: string;
+  /** The activity instance the item grades, such as the assignment id. */
+  instance?: number;
   grade: number | null;
   gradePct: number | null;
   maxGrade: number;

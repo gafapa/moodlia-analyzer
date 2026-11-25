@@ -34,6 +34,8 @@
     "moodlia": "0.5.3"
   },
   "devDependencies": {
+    "@fontsource-variable/inter": "5.3.0",
+    "@fontsource/plus-jakarta-sans": "5.3.0",
     "@types/node": "22.19.1",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",

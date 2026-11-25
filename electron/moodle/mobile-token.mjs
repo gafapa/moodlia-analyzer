@@ -28,10 +28,10 @@ export function createPassport() {
  * in which case the address the user entered and login inside the app are assumed.
  * @param {string} siteUrl normalized site address without a trailing slash
  * @param {typeof fetch} [fetchImpl]
- * @returns {Promise<{ wwwroot: string, launchUrl: string, typeOfLogin: number }>}
+ * @returns {Promise<{ wwwroot: string, launchUrl: string, typeOfLogin: number, siteName: string }>}
  */
 export async function readMobileConfig(siteUrl, fetchImpl = fetch) {
-  const fallback = { wwwroot: siteUrl, launchUrl: `${siteUrl}/admin/tool/mobile/launch.php`, typeOfLogin: LOGIN_IN_APP };
+  const fallback = { wwwroot: siteUrl, launchUrl: `${siteUrl}/admin/tool/mobile/launch.php`, typeOfLogin: LOGIN_IN_APP, siteName: '' };
   let body;
   try {
     const response = await fetchImpl(`${siteUrl}/lib/ajax/service-nologin.php?info=tool_mobile_get_public_config`, {
@@ -54,7 +54,8 @@ export async function readMobileConfig(siteUrl, fetchImpl = fetch) {
   const wwwroot = typeof config.wwwroot === 'string' && config.wwwroot ? config.wwwroot.replace(/\/+$/, '') : siteUrl;
   const launchUrl = typeof config.launchurl === 'string' && config.launchurl.startsWith(`${wwwroot}/`) ? config.launchurl : `${wwwroot}/admin/tool/mobile/launch.php`;
   const typeOfLogin = [LOGIN_IN_BROWSER, LOGIN_IN_EMBEDDED_BROWSER].includes(Number(config.typeoflogin)) ? Number(config.typeoflogin) : LOGIN_IN_APP;
-  return { wwwroot, launchUrl, typeOfLogin };
+  const siteName = typeof config.sitename === 'string' ? config.sitename.replace(/<[^>]*>/g, '').trim().slice(0, 200) : '';
+  return { wwwroot, launchUrl, typeOfLogin, siteName };
 }
 
 /**
