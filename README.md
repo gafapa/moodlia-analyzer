@@ -15,7 +15,7 @@ What works:
 - Saved Moodle sites with tokens encrypted by the operating system keychain.
 - Connection with or without the MoodlIA plugin, with the providers detected on connect.
 - The list of the user's courses.
-- Course analysis: data collection through core Moodle web services, then the engagement, grade, risk and recommendation analysis carried over from `moodlia-analyzer-web`.
+- Course analysis: data collection through core Moodle web services, then the engagement, grade, risk and recommendation analysis carried over from `moodlia-analyzer-web`. The course view shows a course summary, the grade distribution, recommendations, a sortable student table with per-student risk factors, recommendations and grade items, and per-assignment, quiz and forum summaries.
 - Read-only access to any read operation of the canonical contracts.
 
 The interface is provisional: it exists to exercise the connection and the analysis and will be redesigned.
@@ -59,7 +59,7 @@ One token is enough when its service has everything the app uses: the Moodle app
 | Main process | `electron/main.mjs` | Window, security settings, and the IPC handlers the interface calls. |
 | Moodle session | `electron/moodle/session.mjs` | Read-only session over the adaptive adapter of the [`moodlia`](https://www.npmjs.com/package/moodlia) package, which builds on [`moodle-core-cli`](https://www.npmjs.com/package/moodle-core-cli). |
 | Course collector | `electron/analysis/collector.mjs` | Reads one course through core web services and returns the data the analysis expects. |
-| Analysis | `src/analysis/` | Student metrics, grade prediction, risk and recommendations (TypeScript, no Moodle access). |
+| Analysis | `src/analysis/` | Student metrics, grade prediction, risk and recommendations, and per-activity summaries (TypeScript, no Moodle access). |
 | Moodle app token | `electron/moodle/mobile-token.mjs`, `electron/sign-in-window.mjs` | Reads the site's mobile settings, then gets the token with username and password through `login/token.php` or with the site's own sign-in page through `admin/tool/mobile/launch.php`. |
 | Profiles | `electron/profiles.mjs` | Saved sites; tokens encrypted with Electron `safeStorage`. |
 | Bridge | `electron/preload.cjs` | The only functions the page can call: `profiles.list/save/signInMethod/signIn/remove`, `session.connect/disconnect/courses/read` and `analysis.collect/onProgress`. |
