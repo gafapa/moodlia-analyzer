@@ -11,3 +11,8 @@
 - Every read names its provider (`moodlia` or `core`), because both contracts share operation names with different parameters.
 - Provisional interface to exercise the connection layer.
 - Unit tests, end-to-end tests against a fake Moodle REST endpoint (connection with and without the plugin, and a full course collection), Vitest analysis tests, and a startup smoke check.
+- Installers built with `electron-builder`: Windows x64 (installer and zip), macOS Apple silicon and Intel (dmg and zip, signed ad hoc), Linux x64 (AppImage and tar.gz). Not code-signed yet.
+- `npm run package:dir`, `npm run package` and `npm run smoke:packaged`; the smoke check can run on the packaged app.
+- CI on Windows, Ubuntu and macOS, including a smoke check of the packaged app, plus dependency audits and a check of the project page.
+- Release workflow: a version tag builds and checks the installers on the three systems and creates a draft GitHub release with SHA-256 checksums.
+- Project page on GitHub Pages that lists the installers of the latest release.

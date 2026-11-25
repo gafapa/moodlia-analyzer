@@ -2,11 +2,13 @@
 
 Desktop app for Moodle course and student analysis. It connects to any Moodle site with a web service token and uses the MoodlIA plugin when the site has it.
 
-[Status](#status) · [Getting started](#getting-started) · [Architecture](#architecture) · [Development](#development) · [Security and privacy](#security-and-privacy) · [Roadmap](#roadmap) · [License](#license)
+Project page: <https://gafapa.github.io/moodlia-analyzer/>
+
+[Status](#status) · [Getting started](#getting-started) · [Architecture](#architecture) · [Development](#development) · [Distribution](#distribution) · [Security and privacy](#security-and-privacy) · [Roadmap](#roadmap) · [License](#license)
 
 ## Status
 
-Version 0.1.0 is the foundation of the app that will replace `moodlia-analyzer-web` and `moodlia-analyzer-desktop`. It is not released or packaged yet.
+Version 0.1.0 is the foundation of the app that will replace `moodlia-analyzer-web` and `moodlia-analyzer-desktop`. It is not released yet; the installers are built by the release workflow.
 
 What works:
 
@@ -86,7 +88,43 @@ Differences from `moodlia-analyzer-web`, which this app corrects:
 | `npm run typecheck` | TypeScript for the interface and JSDoc checks for the main process. |
 | `npm test` | Main-process tests with `node --test`, including end-to-end tests that run the real `moodlia` and `moodle-core-cli` clients against a fake Moodle REST endpoint on `127.0.0.1` (connection with and without the plugin, and a full course collection that checks the Moodle function names and parameters sent). Then the analysis tests with Vitest. |
 | `npm run smoke` | Builds the interface and starts the app with `MOODLIA_ANALYZER_SMOKE=1`. The app checks that the page renders, the bridge is present, Node is not reachable from the page and a bridge call returns, then exits. A temporary profile directory is used. |
-| `npm run check` | All of the above. |
+| `npm run check` | Typecheck, tests and smoke check. |
+| `npm run package:dir` | Builds the interface and an unpacked app for this computer in `release/`. |
+| `npm run smoke:packaged` | Runs the smoke check on the unpacked app in `release/`. |
+| `npm run package` | Builds the installers for this operating system in `release/`. |
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request:
+
+- On Windows, Ubuntu and macOS: typecheck, tests, the smoke check with the development Electron, an unpacked package for the runner's architecture, and the smoke check on that packaged app. Ubuntu runs the Electron checks under Xvfb and enables the unprivileged user namespaces the Chromium sandbox needs.
+- On Ubuntu: `npm audit` of the shipped dependencies at moderate level and of all dependencies at high level, and `scripts/check-site.mjs` on the project page.
+
+The build-only dependencies of `electron-builder` carry a moderate `minimatch` advisory with no compatible fix; it does not reach the packaged app, which is why the full audit runs at high level.
+
+### Project page
+
+`site/` is the GitHub Pages site: a static page with no build step and no external scripts or stylesheets. `site/downloads.js` lists the installers of the latest published release through the GitHub API and keeps the static text when there is none. `.github/workflows/pages.yml` checks the page with `scripts/check-site.mjs` and deploys it when `site/` changes on `main`.
+
+## Distribution
+
+`electron-builder` builds, from the `build` section of `package.json`:
+
+| System | Files |
+| --- | --- |
+| Windows x64 | `MoodlIA-Analyzer-<version>-win-x64-setup.exe` (per-user installer that lets you choose the folder) and a `.zip` |
+| macOS | `.dmg` and `.zip` for Apple silicon (`arm64`) and Intel (`x64`) |
+| Linux x64 | `.AppImage` and `.tar.gz` |
+
+The installers are not code-signed yet: Windows SmartScreen warns about an unknown publisher, and the macOS app is signed ad hoc but not notarized, so it must be opened once with right click, Open. The app uses the default Electron icon until the interface is designed.
+
+### Releasing
+
+1. Set the version in `package.json` and give it a section in `CHANGELOG.md`.
+2. Merge to `main` and wait for CI to pass.
+3. Push a tag `v<version>`.
+
+`.github/workflows/release.yml` checks that the tag matches `package.json`, runs the full check, builds the installers on Windows, macOS and Linux, runs the smoke check on each packaged app, and creates a **draft** GitHub release with the installers, `SHA256SUMS-<version>.txt` and the changelog section as notes. Review the draft and publish it by hand; the project page lists it once it is published. A manual run of the workflow builds the installers as workflow artifacts without a release.
 
 ## Security and privacy
 
@@ -102,7 +140,7 @@ Differences from `moodlia-analyzer-web`, which this app corrects:
 2. A collector path that uses the MoodlIA plugin's reports (course progress, quiz results, grades in bulk) when the token offers them.
 3. Port the quiz review and the AI report from `moodlia-analyzer-web`.
 4. Design the interface.
-5. Installers for Windows, macOS and Linux.
+5. Code signing for Windows and notarization for macOS, and an app icon.
 6. Check what `moodlia-analyzer-desktop` offers that this app lacks, then retire both earlier analyzers.
 
 ## License
