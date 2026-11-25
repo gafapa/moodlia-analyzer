@@ -1,0 +1,10 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+// Relative asset paths so the built interface loads from file:// inside Electron.
+export default defineConfig({
+  base: './',
+  plugins: [react()],
+  server: { host: '127.0.0.1', port: 5183, strictPort: true },
+  build: { outDir: 'dist', emptyOutDir: true }
+});
