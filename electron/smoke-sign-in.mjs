@@ -17,7 +17,7 @@ export async function smokeSignIn() {
     const signedIn = (request.headers.cookie ?? '').includes('MoodleSession=ok');
     if (url.pathname === '/lib/ajax/service-nologin.php') {
       response.setHeader('Content-Type', 'application/json');
-      response.end(JSON.stringify([{ error: false, data: { wwwroot: base, launchurl: `${base}/admin/tool/mobile/launch.php`, enablemobilewebservice: 1 } }]));
+      response.end(JSON.stringify([{ error: false, data: { wwwroot: base, launchurl: `${base}/admin/tool/mobile/launch.php`, enablemobilewebservice: 1, typeoflogin: 2 } }]));
     } else if (url.pathname === '/admin/tool/mobile/launch.php' && !signedIn) {
       response.writeHead(303, { Location: `/login/index.php?wantsurl=${encodeURIComponent(url.pathname + url.search)}` }).end();
     } else if (url.pathname === '/admin/tool/mobile/launch.php') {

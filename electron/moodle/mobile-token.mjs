@@ -1,14 +1,22 @@
 // @ts-check
 // Gets a token for the Moodle mobile app service (moodle_mobile_app) the way the Moodle app
-// does: the user signs in on the site's own page, with any authentication method the site
-// uses, and Moodle's admin/tool/mobile/launch.php redirects to moodlemobile://token=... with
-// the token. The app never sees the password. These functions hold the parts that do not
-// need Electron; the sign-in window is in electron/sign-in-window.mjs.
+// does. The site's mobile settings decide how ("typeoflogin" in its public configuration):
+//
+// - Login inside the app (1, the Moodle default): the user's username and password are sent
+//   to the site's login/token.php, which returns the token. They are not stored.
+// - Login in a browser (2) or an embedded browser (3): the user signs in on the site's own
+//   page, with any authentication method the site uses, and admin/tool/mobile/launch.php
+//   redirects to moodlemobile://token=... with the token. Moodle refuses launch.php on sites
+//   set to log in inside the app. The sign-in window is in electron/sign-in-window.mjs.
 import { createHash, randomBytes } from 'node:crypto';
-import { SessionError } from './session.mjs';
+import { SessionError, normalizeSiteUrl } from './session.mjs';
 
 export const MOBILE_SERVICE = 'moodle_mobile_app';
 export const URL_SCHEME = 'moodlemobile';
+/** tool_mobile typeoflogin values. */
+export const LOGIN_IN_APP = 1;
+export const LOGIN_IN_BROWSER = 2;
+export const LOGIN_IN_EMBEDDED_BROWSER = 3;
 
 /** A random value Moodle signs with its address, so a token from another site is refused. */
 export function createPassport() {
@@ -17,13 +25,13 @@ export function createPassport() {
 
 /**
  * Asks the site's public mobile configuration. Older sites without it answer with an error,
- * in which case the sign-in is still tried with the address the user entered.
+ * in which case the address the user entered and login inside the app are assumed.
  * @param {string} siteUrl normalized site address without a trailing slash
  * @param {typeof fetch} [fetchImpl]
- * @returns {Promise<{ wwwroot: string, launchUrl: string }>}
+ * @returns {Promise<{ wwwroot: string, launchUrl: string, typeOfLogin: number }>}
  */
 export async function readMobileConfig(siteUrl, fetchImpl = fetch) {
-  const fallback = { wwwroot: siteUrl, launchUrl: `${siteUrl}/admin/tool/mobile/launch.php` };
+  const fallback = { wwwroot: siteUrl, launchUrl: `${siteUrl}/admin/tool/mobile/launch.php`, typeOfLogin: LOGIN_IN_APP };
   let body;
   try {
     const response = await fetchImpl(`${siteUrl}/lib/ajax/service-nologin.php?info=tool_mobile_get_public_config`, {
@@ -45,7 +53,58 @@ export async function readMobileConfig(siteUrl, fetchImpl = fetch) {
   }
   const wwwroot = typeof config.wwwroot === 'string' && config.wwwroot ? config.wwwroot.replace(/\/+$/, '') : siteUrl;
   const launchUrl = typeof config.launchurl === 'string' && config.launchurl.startsWith(`${wwwroot}/`) ? config.launchurl : `${wwwroot}/admin/tool/mobile/launch.php`;
-  return { wwwroot, launchUrl };
+  const typeOfLogin = [LOGIN_IN_BROWSER, LOGIN_IN_EMBEDDED_BROWSER].includes(Number(config.typeoflogin)) ? Number(config.typeoflogin) : LOGIN_IN_APP;
+  return { wwwroot, launchUrl, typeOfLogin };
+}
+
+/**
+ * How the user signs in to get a token on this site.
+ * @param {{ typeOfLogin: number }} config
+ * @returns {'password' | 'browser'}
+ */
+export function signInMethod(config) {
+  return config.typeOfLogin === LOGIN_IN_APP ? 'password' : 'browser';
+}
+
+/**
+ * Gets a Moodle app token with the user's username and password through login/token.php,
+ * as the Moodle app does on sites set to log in inside the app. Nothing is stored here.
+ * @param {string} siteAddress
+ * @param {string} username
+ * @param {string} password
+ * @param {typeof fetch} [fetchImpl]
+ */
+export async function requestTokenWithPassword(siteAddress, username, password, fetchImpl = fetch) {
+  const { url: siteUrl } = normalizeSiteUrl(siteAddress);
+  if (!String(username ?? '').trim() || !password) throw new SessionError('credentials_required', 'Enter your Moodle username and password.');
+  const { wwwroot } = await readMobileConfig(siteUrl, fetchImpl);
+  let response;
+  try {
+    response = await fetchImpl(`${wwwroot}/login/token.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body: new URLSearchParams({ username: String(username).trim(), password: String(password), service: MOBILE_SERVICE }).toString(),
+      redirect: 'error',
+      signal: AbortSignal.timeout(30_000)
+    });
+  } catch {
+    throw new SessionError('sign_in_failed', 'The Moodle site could not be reached to create a token.');
+  }
+  if (!response.ok) throw new SessionError('sign_in_failed', `The Moodle site answered ${response.status} when creating a token.`);
+  /** @type {any} */
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new SessionError('sign_in_failed', 'The Moodle site did not answer with a token. Check the address.');
+  }
+  if (data?.error || data?.errorcode) {
+    const code = String(data.errorcode ?? 'sign_in_failed');
+    throw new SessionError(code === 'invalidlogin' ? 'invalid_login' : code, String(data.error ?? 'Moodle refused the sign-in.').slice(0, 300));
+  }
+  const token = typeof data?.token === 'string' ? data.token : '';
+  if (!/^[A-Za-z0-9]{16,128}$/.test(token)) throw new SessionError('invalid_token_response', 'Moodle did not return a token.');
+  return token;
 }
 
 /**

@@ -1,11 +1,12 @@
 // @ts-check
-// Window where the user signs in on the Moodle site's own page to get a mobile app token.
+// Window where the user signs in on the Moodle site's own page to get a mobile app token, for
+// sites whose mobile settings log in through a browser.
 // It uses a fresh in-memory session, so the Moodle sign-in cookies are not kept, and it has
 // no bridge to the app. See electron/moodle/mobile-token.mjs for the protocol.
 import { BrowserWindow, session } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { SessionError, normalizeSiteUrl } from './moodle/session.mjs';
-import { buildLaunchUrl, createPassport, isLaunchRedirect, parseLaunchRedirect, readMobileConfig } from './moodle/mobile-token.mjs';
+import { LOGIN_IN_APP, buildLaunchUrl, createPassport, isLaunchRedirect, parseLaunchRedirect, readMobileConfig } from './moodle/mobile-token.mjs';
 
 /**
  * @param {BrowserWindow | null} parent
@@ -14,7 +15,8 @@ import { buildLaunchUrl, createPassport, isLaunchRedirect, parseLaunchRedirect, 
  */
 export async function signInForMobileToken(parent, siteAddress) {
   const { url: siteUrl, allowInsecure } = normalizeSiteUrl(siteAddress);
-  const { wwwroot, launchUrl } = await readMobileConfig(siteUrl);
+  const { wwwroot, launchUrl, typeOfLogin } = await readMobileConfig(siteUrl);
+  if (typeOfLogin === LOGIN_IN_APP) throw new SessionError('credentials_required', 'This site gives Moodle app tokens with your username and password, not through its sign-in page.');
   const passport = createPassport();
   const partition = `sign-in-${randomUUID()}`;
   const signInSession = session.fromPartition(partition, { cache: false });

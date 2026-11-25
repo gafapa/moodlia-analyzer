@@ -6,7 +6,10 @@ import { CourseView } from './CourseView';
 
 export function App() {
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
-  const [form, setForm] = useState({ name: '', url: '', token: '', coreToken: '' });
+  const emptyForm = { id: '', name: '', url: '', token: '', coreToken: '', username: '', password: '' };
+  const [form, setForm] = useState(emptyForm);
+  // How the site gives Moodle app tokens, asked when the user first signs in.
+  const [method, setMethod] = useState<'password' | 'browser' | null>(null);
   const [site, setSite] = useState<SiteSummary | null>(null);
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [message, setMessage] = useState('');
@@ -42,7 +45,8 @@ export function App() {
       setBusy(false);
       return;
     }
-    setForm({ name: '', url: '', token: '', coreToken: '' });
+    setForm(emptyForm);
+    setMethod(null);
     await refreshProfiles();
     await connect({ profileId: saved.value.id });
     if (!saved.value.tokensStored) setMessage('This system cannot encrypt tokens, so they are kept only until the app closes.');
@@ -50,12 +54,13 @@ export function App() {
 
   const saveAndConnect = async (event: FormEvent) => {
     event.preventDefault();
+    // Enter in the sign-in fields signs in; the manual tokens are saved as they are.
     if (!form.token && !form.coreToken) {
-      setMessage('Sign in to Moodle to get a token, or enter one.');
+      await signIn();
       return;
     }
     setBusy(true);
-    await afterSave(await analyzer().profiles.save(form));
+    await afterSave(await analyzer().profiles.save({ id: form.id || undefined, name: form.name, url: form.url, token: form.token, coreToken: form.coreToken }));
   };
 
   const signIn = async () => {
@@ -64,8 +69,39 @@ export function App() {
       return;
     }
     setBusy(true);
-    setMessage('Sign in on the Moodle page that opened.');
-    await afterSave(await analyzer().profiles.signIn({ name: form.name, url: form.url, token: form.token || undefined }));
+    let current = method;
+    if (!current) {
+      const asked = await analyzer().profiles.signInMethod(form.url);
+      if (!asked.ok) {
+        setMessage(asked.error.message);
+        setBusy(false);
+        return;
+      }
+      current = asked.value;
+      setMethod(current);
+    }
+    if (current === 'password' && (!form.username || !form.password)) {
+      setMessage('This site creates Moodle app tokens with your username and password. They are sent only to the Moodle site and are not saved.');
+      setBusy(false);
+      return;
+    }
+    setMessage(current === 'browser' ? 'Sign in on the Moodle page that opened.' : 'Signing in…');
+    const result = await analyzer().profiles.signIn({
+      id: form.id || undefined,
+      name: form.name,
+      url: form.url,
+      token: form.token || undefined,
+      ...(current === 'password' ? { username: form.username, password: form.password } : {})
+    });
+    setForm((previous) => ({ ...previous, password: '' }));
+    await afterSave(result);
+  };
+
+  /** Fills the form with a saved site so the user can sign in again. */
+  const signInAgain = (profile: ProfileSummary) => {
+    setForm({ ...emptyForm, id: profile.id, name: profile.name, url: profile.url });
+    setMethod(null);
+    setMessage(`Sign in again to ${profile.name} below.`);
   };
 
   const disconnect = async () => {
@@ -113,7 +149,7 @@ export function App() {
                   {profile.name}
                 </button>{' '}
                 <small>{profile.url}</small>{' '}
-                <button type="button" disabled={busy} onClick={async () => { setBusy(true); setMessage('Sign in on the Moodle page that opened.'); await afterSave(await analyzer().profiles.signIn({ id: profile.id, name: profile.name, url: profile.url })); }}>Sign in again</button>{' '}
+                <button type="button" disabled={busy} onClick={() => signInAgain(profile)}>Sign in again</button>{' '}
                 <button type="button" onClick={async () => { await analyzer().profiles.remove(profile.id); await refreshProfiles(); }}>Remove</button>
               </li>
             ))}
@@ -121,12 +157,22 @@ export function App() {
         </section>
       )}
       <form onSubmit={saveAndConnect}>
-        <h2>Add a site</h2>
+        <h2>{form.id ? `Sign in again to ${form.name}` : 'Add a site'}</h2>
         <label>Name <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-        <label>Moodle address <input required type="url" placeholder="https://moodle.example.edu" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></label>
+        <label>Moodle address <input required type="url" placeholder="https://moodle.example.edu" value={form.url} onChange={(e) => { setForm({ ...form, url: e.target.value }); setMethod(null); }} /></label>
+        {method === 'password' && (
+          <>
+            <label>Moodle username <input autoComplete="username" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></label>
+            <label>Password <input type="password" autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
+          </>
+        )}
         <p>
           <button type="button" disabled={busy} onClick={signIn}>Sign in to Moodle</button>{' '}
-          <small>Opens the site's own sign-in page and creates a Moodle app token. The app never sees your password.</small>
+          <small>
+            {method === 'password'
+              ? 'Creates a Moodle app token with your username and password, like the Moodle app. They go only to the Moodle site and are not saved.'
+              : 'Creates a Moodle app token, like the Moodle app. Depending on the site, you sign in here or on its own page.'}
+          </small>
         </p>
         <details>
           <summary>Enter tokens by hand</summary>

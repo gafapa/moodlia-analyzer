@@ -36,7 +36,11 @@ npm run dev                    # interface with hot reload inside Electron
 
 Add a site with its name and its HTTPS address. HTTP is accepted only for `localhost` and `127.0.0.1`. Then either:
 
-- **Sign in to Moodle** (recommended). The app opens the site's own sign-in page in a separate window, so any sign-in method the site uses works, including single sign-on. Moodle then creates a token for its mobile app service (`moodle_mobile_app`) and hands it to the app, the same way the Moodle app gets one. The app never sees the password, the window keeps no cookies, and the token is checked against the site before it is saved. The site must allow the Moodle app ("Web services for mobile devices", on by default on recent sites); the app checks this before opening the window. Saved sites have **Sign in again** to replace an expired token.
+- **Sign in to Moodle** (recommended). The app gets a token for the Moodle mobile app service (`moodle_mobile_app`) the way the Moodle app does, following the site's mobile settings ("How the Moodle app logs in", `typeoflogin` in the site's public configuration):
+  - **Inside the app** (the Moodle default): the app asks for your Moodle username and password and sends them to the site's `login/token.php`, which returns the token. They go only to the Moodle site over HTTPS and are not saved.
+  - **In a browser or embedded browser**: the app opens the site's own sign-in page in a separate window, so any sign-in method works, including single sign-on, and `admin/tool/mobile/launch.php` returns the token. The app never sees the password, the window keeps no cookies, and the token is checked against the site before it is saved. Moodle refuses this page on sites set to log in inside the app.
+
+  The site must allow the Moodle app ("Web services for mobile devices", on by default on recent sites); the app checks this first. Saved sites have **Sign in again** to replace an expired token.
 - **Enter tokens by hand**, for a token an administrator created for a specific service.
 
 #### Why two tokens
@@ -56,9 +60,9 @@ One token is enough when its service has everything the app uses: the Moodle app
 | Moodle session | `electron/moodle/session.mjs` | Read-only session over the adaptive adapter of the [`moodlia`](https://www.npmjs.com/package/moodlia) package, which builds on [`moodle-core-cli`](https://www.npmjs.com/package/moodle-core-cli). |
 | Course collector | `electron/analysis/collector.mjs` | Reads one course through core web services and returns the data the analysis expects. |
 | Analysis | `src/analysis/` | Student metrics, grade prediction, risk and recommendations (TypeScript, no Moodle access). |
-| Moodle app token | `electron/moodle/mobile-token.mjs`, `electron/sign-in-window.mjs` | Sign-in on the site's own page through `admin/tool/mobile/launch.php`, and the check of the token Moodle returns. |
+| Moodle app token | `electron/moodle/mobile-token.mjs`, `electron/sign-in-window.mjs` | Reads the site's mobile settings, then gets the token with username and password through `login/token.php` or with the site's own sign-in page through `admin/tool/mobile/launch.php`. |
 | Profiles | `electron/profiles.mjs` | Saved sites; tokens encrypted with Electron `safeStorage`. |
-| Bridge | `electron/preload.cjs` | The only functions the page can call: `profiles.list/save/signIn/remove`, `session.connect/disconnect/courses/read` and `analysis.collect/onProgress`. |
+| Bridge | `electron/preload.cjs` | The only functions the page can call: `profiles.list/save/signInMethod/signIn/remove`, `session.connect/disconnect/courses/read` and `analysis.collect/onProgress`. |
 | Interface | `src/` | React and TypeScript, built with Vite. |
 
 Moodle requests are made by Node in the main process, so browser CORS rules do not apply and no browser extension is needed.
@@ -140,6 +144,7 @@ The installers are not code-signed yet: Windows SmartScreen warns about an unkno
 - Only the app's own page may call the main process. Navigation away from the app is blocked, other windows are refused, and external `https://` links open in the default browser. Permission requests (camera, notifications and the like) are refused.
 - A Content Security Policy limits the page to its own scripts.
 - Tokens are encrypted with the operating system keychain (DPAPI on Windows, Keychain on macOS, the Secret Service on Linux) and never reach the page. If the system cannot encrypt, tokens are kept in memory until the app closes and are not written to disk.
+- A password typed to sign in is sent only to the site's `login/token.php` over HTTPS (HTTP only on this computer), with redirects refused, and is cleared from the form afterwards; it is never saved.
 - The Moodle sign-in window runs the site's page with no bridge to the app, in an in-memory session that is cleared afterwards. It accepts only HTTPS pages (or HTTP on this computer), refuses new windows and permission requests, and accepts a token only when Moodle signed it with this site's address and a random value created for that sign-in. The private token Moodle may add for automatic web sign-in is discarded.
 - Course and student data stay on the computer. The app has no backend and sends nothing to MoodlIA.
 

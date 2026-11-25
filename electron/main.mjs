@@ -2,7 +2,8 @@
 import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MoodleSession, SessionError } from './moodle/session.mjs';
+import { MoodleSession, SessionError, normalizeSiteUrl } from './moodle/session.mjs';
+import { readMobileConfig, requestTokenWithPassword, signInMethod } from './moodle/mobile-token.mjs';
 import { CourseCollector } from './analysis/collector.mjs';
 import { ProfileStore } from './profiles.mjs';
 import { signInForMobileToken } from './sign-in-window.mjs';
@@ -50,12 +51,16 @@ function registerHandlers() {
   handle('profiles:list', () => profiles.list());
   handle('profiles:save', (input) => profiles.save(input ?? {}));
   handle('profiles:remove', (id) => profiles.remove(String(id)));
-  // Signs in on the site's own page and saves the mobile app token as the core web services
-  // token of the profile. The token stays in the main process.
+  // How the site gives Moodle app tokens: username and password, or its own sign-in page.
+  handle('profiles:signInMethod', async (url) => signInMethod(await readMobileConfig(normalizeSiteUrl(String(url ?? '')).url)));
+  // Gets a Moodle app token and saves it as the core web services token of the profile.
+  // The password is only sent to the Moodle site; the token stays in the main process.
   handle('profiles:signIn', async (input) => {
     const request = input && typeof input === 'object' ? input : {};
     if (!String(request.name ?? '').trim()) throw new TypeError('A profile needs a name and a Moodle address.');
-    const coreToken = await signInForMobileToken(mainWindow, String(request.url ?? ''));
+    const coreToken = request.password
+      ? await requestTokenWithPassword(String(request.url ?? ''), String(request.username ?? ''), String(request.password))
+      : await signInForMobileToken(mainWindow, String(request.url ?? ''));
     return profiles.save({ id: request.id, name: request.name, url: request.url, token: request.token, coreToken });
   });
   handle('session:connect', async (request) => {
