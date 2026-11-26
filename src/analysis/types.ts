@@ -81,6 +81,40 @@ export interface StudentCourseData {
   logs: Record<string, unknown>[];
 }
 
+export interface QuizQuestionSlot {
+  slot: number;
+  /** The number shown to students, such as "3". */
+  number: string;
+  type: string;
+  maxmark: number | null;
+  /** The start of the question text. */
+  text: string;
+  /** The slot held different questions in different attempts (a random question). */
+  varies: boolean;
+}
+
+export interface QuizQuestionData {
+  slots: QuizQuestionSlot[];
+  /** Each student's first finished attempt: the quiz grade and the mark per slot. */
+  attempts: Array<{ userid: number; grade: number | null; marks: Record<number, number | null> }>;
+}
+
+export interface Deadline {
+  courseId: number;
+  kind: "assign" | "quiz";
+  name: string;
+  due: number;
+}
+
+export interface WorkloadData {
+  /** Visible courses of each student. */
+  coursesByUser: Record<number, number[]>;
+  courseNames: Record<number, string>;
+  deadlines: Deadline[];
+  /** Courses whose assignments and quizzes this token could read. */
+  covered: { assignments: number[]; quizzes: number[] };
+}
+
 export interface CollectedCourseData {
   course: CourseSummary;
   students: StudentCourseData[];
@@ -94,6 +128,10 @@ export interface CollectedCourseData {
   assignmentGradesByAssign: Record<number, Record<string, unknown>[]>;
   attemptsByQuiz: Record<number, Record<string, unknown>[]>;
   postsByUser: Record<number, Record<string, unknown>[]>;
+  /** Marks per question of each quiz, by quiz id. */
+  quizQuestions?: Record<number, QuizQuestionData>;
+  /** Deadlines in all the students' courses. */
+  workload?: WorkloadData;
   logsAvailable: boolean;
   logs: Record<string, unknown>[];
   /** Sources this token could not read, by operation, with the reason. */

@@ -27,7 +27,9 @@ const payloads = {
   get_course_user_profiles: [{ id: 9, roles: [{ shortname: 'student' }], fullname: 'Luis Pérez' }],
   get_grade_items: { usergrades: [{ userid: 7, gradeitems: [{ itemtype: 'course', graderaw: 7, grademax: 10 }, { itemtype: 'mod', itemmodule: 'assign', itemname: 'Essay', graderaw: 8, grademax: 10 }] }] },
   get_activity_completion_statuses: (parameters) => ({ statuses: parameters.user_id === 7 ? [{ state: 1 }, { state: 0 }] : [] }),
-  get_user_quiz_attempts_legacy: (parameters) => ({ attempts: parameters.user_id === 7 ? [{ id: 1, state: 'finished', sumgrades: 15, userid: 7 }] : [] })
+  get_user_quiz_attempts_legacy: (parameters) => ({ attempts: parameters.user_id === 7 ? [{ id: 1, state: 'finished', sumgrades: 15, userid: 7 }] : [] }),
+  get_quiz_attempt_review: { grade: 7.5, questions: [{ slot: 1, type: 'truefalse', questionnumber: '1', maxmark: 1, mark: '1.00', html: '<div class="qtext">Q</div>' }] },
+  get_user_courses: [{ id: COURSE, shortname: 'BIO' }]
 };
 
 function fakeSession({ missing = [] } = {}) {
@@ -94,4 +96,37 @@ test('helpers normalize Moodle records', () => {
   assert.equal(attemptGrade({ grade: 4 }, {}), 4);
   assert.equal(attemptGrade({ sumgrades: null }, { sumgrades: 10, grade: 10 }), null);
   assert.equal(parseGradeItems({}).items.length, 0);
+});
+
+test('reads localized marks and short question texts', async () => {
+  const { parseMark, questionText, summarizeQuizReviews } = await import('../electron/analysis/collector.mjs');
+  assert.equal(parseMark('1,00'), 1);
+  assert.equal(parseMark('0.50'), 0.5);
+  assert.equal(parseMark(null), null);
+  assert.equal(questionText('<div class="qtext"><p>What is&nbsp;<b>2 + 2</b>?</p></div><div class="answer">4</div>'), 'What is 2 + 2 ?');
+  assert.equal(questionText('<div>no text</div>'), '');
+  const summary = summarizeQuizReviews([
+    { userid: 7, review: { grade: 8, questions: [{ slot: 1, type: 'multichoice', questionnumber: '1', maxmark: 1, mark: '1,00', html: '<div class="qtext">A</div>' }, { slot: 2, type: 'description', html: '' }] } },
+    { userid: 8, review: { grade: 2, questions: [{ slot: 1, type: 'multichoice', questionnumber: '1', maxmark: 1, mark: '0,00', html: '<div class="qtext">B</div>' }] } }
+  ]);
+  assert.deepEqual(summary.slots, [{ slot: 1, number: '1', type: 'multichoice', maxmark: 1, text: 'A', varies: true }]);
+  assert.deepEqual(summary.attempts, [{ userid: 7, grade: 8, marks: { 1: 1 } }, { userid: 8, grade: 2, marks: { 1: 0 } }]);
+});
+
+test('collects deadlines from the students\' courses through read operations only', async () => {
+  const calls = [];
+  const session = {
+    async read(provider, operation, parameters) {
+      calls.push(operation);
+      if (operation === 'get_user_courses') return parameters.user_id === 7 ? [{ id: 1, shortname: 'MAT' }, { id: 2, shortname: 'ART', visible: 0 }] : [{ id: 3, shortname: 'HIS' }];
+      if (operation === 'get_course_assignments') return { courses: [{ id: 1, assignments: [{ name: 'A', duedate: 100 }, { name: 'No date', duedate: 0 }] }, { id: 3, assignments: [] }] };
+      if (operation === 'get_course_quizzes') return { quizzes: [{ course: 3, name: 'Q', timeclose: 200 }] };
+      throw new Error('unexpected');
+    }
+  };
+  const workload = await new CourseCollector(session).collectWorkload([7, 8]);
+  assert.deepEqual(workload.coursesByUser, { 7: [1], 8: [3] });
+  assert.deepEqual(workload.deadlines, [{ courseId: 1, kind: 'assign', name: 'A', due: 100 }, { courseId: 3, kind: 'quiz', name: 'Q', due: 200 }]);
+  assert.deepEqual(workload.covered, { assignments: [1, 3], quizzes: [3] });
+  assert.ok(calls.every((operation) => operation.startsWith('get_')));
 });

@@ -4,12 +4,14 @@ import { useMemo, useState } from 'react';
 import type { Analysed } from '../App';
 import { classAverages, gradeEvolution } from '../analysis/insights';
 import { weekStart } from '../analysis/courseCharts';
-import { WeeklyLines } from '../charts/Charts';
+import { OVERLOAD, TIMING_BUCKETS, WORKLOAD_PAST_WEEKS, studentDeadlines } from '../analysis/advanced';
+import { Columns, WeeklyLines } from '../charts/Charts';
+import { TIMING_COLORS } from './CourseMore';
 import { useI18n } from '../i18n';
 import type { MessageKey } from '../i18n/en';
 import { BarList, Card, Icon, LanguageSelect, initials, pct } from '../ui';
 
-type Tab = 'summary' | 'tasks' | 'evolution';
+type Tab = 'summary' | 'tasks' | 'evolution' | 'deadlines';
 const WEEK = 7 * 86400;
 
 export function Student({ entry, studentId, courseName, onBack }: { entry: Analysed; studentId: number; courseName: string; onBack: () => void }) {
@@ -58,7 +60,7 @@ export function Student({ entry, studentId, courseName, onBack }: { entry: Analy
         </header>
 
         <div className="tabs" role="tablist" aria-label={t('student.sections')}>
-          {(['summary', 'tasks', 'evolution'] as Tab[]).map((id) => (
+          {(['summary', 'tasks', 'evolution', 'deadlines'] as Tab[]).map((id) => (
             <button key={id} type="button" role="tab" aria-selected={tab === id} className="tab" onClick={() => setTab(id)}>{t(`student.tab.${id}` as MessageKey)}</button>
           ))}
         </div>
@@ -82,14 +84,30 @@ export function Student({ entry, studentId, courseName, onBack }: { entry: Analy
                 </ol>
               </Card>
             </div>
+            <ProfileCard entry={entry} studentId={student.id} />
             <Comparison entry={entry} studentId={student.id} />
           </>
         )}
 
         {tab === 'tasks' && <Tasks entry={entry} studentId={student.id} />}
         {tab === 'evolution' && <Evolution entry={entry} studentId={student.id} />}
+        {tab === 'deadlines' && <Deadlines entry={entry} studentId={student.id} />}
       </div>
     </div>
+  );
+}
+
+function ProfileCard({ entry, studentId }: { entry: Analysed; studentId: number }) {
+  const { t } = useI18n();
+  const profile = entry.advanced.profiles[studentId];
+  const timing = entry.advanced.timing.students[studentId];
+  if (!profile) return null;
+  return (
+    <Card title={t('student.profile', { profile: t(`profile.${profile}` as MessageKey) })}>
+      <p style={{ margin: 0 }}>{t(`profile.${profile}.text` as MessageKey, { pct: entry.analysis.passThresholdPct })}</p>
+      {timing?.profile && <p className="muted" style={{ margin: 0 }}>{t(`timing.student.${timing.profile}` as MessageKey, { count: timing.dated })}</p>}
+      <p className="card-foot">{t(`profile.${profile}.action` as MessageKey)}</p>
+    </Card>
   );
 }
 
@@ -150,6 +168,7 @@ function Tasks({ entry, studentId }: { entry: Analysed; studentId: number }) {
           </div>
         )}
       </Card>
+      <TimingCard entry={entry} studentId={studentId} />
       <Card title={t('tasks.lowest')}>
         {lowest.length === 0 ? <p className="muted" style={{ margin: 0 }}>{t('tasks.noGrades')}</p> : (
           <>
@@ -160,6 +179,75 @@ function Tasks({ entry, studentId }: { entry: Analysed; studentId: number }) {
             }))} />
             <p className="card-foot">{t('grading.passLine', { pct: pass })}</p>
           </>
+        )}
+      </Card>
+    </>
+  );
+}
+
+function TimingCard({ entry, studentId }: { entry: Analysed; studentId: number }) {
+  const { t } = useI18n();
+  const own = entry.advanced.timing.students[studentId];
+  const all = entry.advanced.timing.counts;
+  const allTotal = Math.max(1, entry.advanced.timing.total);
+  if (!own || own.dated === 0) return null;
+  return (
+    <Card title={t('tasks.timing')} sub={t('tasks.timingSub')}>
+      <BarList labelWidth={170} rows={TIMING_BUCKETS.map((bucket, index) => ({
+        key: bucket,
+        label: t(`timing.${bucket}` as MessageKey),
+        value: (own.counts[index] / own.dated) * 100,
+        max: 100,
+        avg: (all[index] / allTotal) * 100,
+        text: String(own.counts[index]),
+        title: t('compare.tooltip', { value: Math.round((own.counts[index] / own.dated) * 100), avg: Math.round((all[index] / allTotal) * 100) }),
+        color: TIMING_COLORS[index]
+      }))} />
+      <p className="card-foot">{t('tasks.timingFoot')}</p>
+    </Card>
+  );
+}
+
+function Deadlines({ entry, studentId }: { entry: Analysed; studentId: number }) {
+  const { t, date } = useI18n();
+  const workload = entry.advanced.workload;
+  const counts = workload?.perStudent[studentId];
+  const list = studentDeadlines(entry.analysis, studentId);
+  if (!workload || !counts) return <p className="empty">{entry.analysis.unavailable?.get_user_courses ? t('workload.unavailable') : t('workload.none')}</p>;
+  const current = weekStart(Math.floor(Date.now() / 1000));
+  return (
+    <>
+      <Card title={t('deadlines.title')} sub={t('deadlines.sub', { count: OVERLOAD })}>
+        <Columns
+          title={t('deadlines.title')}
+          highlight={WORKLOAD_PAST_WEEKS}
+          reference={{ value: OVERLOAD, label: t('deadlines.overload', { count: OVERLOAD }) }}
+          bars={workload.weeks.map((week, index) => ({
+            key: String(week),
+            label: date(week).replace(/\s?\d{4}$/, ''),
+            value: counts[index],
+            color: week < current ? 'var(--timing-days1to3)' : counts[index] >= OVERLOAD ? 'var(--series-2)' : 'var(--series-1)',
+            tip: <><strong>{t('chart.weekOf', { date: date(week) })}</strong><br />{t('deadlines.tip', { count: counts[index], average: workload.average[index].toFixed(1) })}</>
+          }))}
+        />
+        <p className="card-foot">{t('workload.foot', { covered: workload.covered, courses: workload.courses })}</p>
+      </Card>
+      <Card title={t('deadlines.upcoming')}>
+        {list.length === 0 ? <p className="muted" style={{ margin: 0 }}>{t('deadlines.noneUpcoming')}</p> : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>{t('deadlines.colDate')}</th><th>{t('deadlines.colCourse')}</th><th>{t('deadlines.colActivity')}</th></tr></thead>
+              <tbody>
+                {list.map((deadline, index) => (
+                  <tr key={`${deadline.courseId}-${deadline.kind}-${index}`}>
+                    <td className="num" style={{ whiteSpace: 'nowrap' }}>{date(deadline.due)}</td>
+                    <td>{deadline.course}</td>
+                    <td>{deadline.name} <span className="pill neutral">{t(`deadlines.kind.${deadline.kind}` as MessageKey)}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
     </>

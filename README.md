@@ -8,7 +8,7 @@ Project page: <https://gafapa.github.io/moodlia-analyzer/>
 
 ## Status
 
-Version 0.1.0 is the foundation of the app that will replace `moodlia-analyzer-web` and `moodlia-analyzer-desktop`. It is not released yet; the installers are built by the release workflow.
+Version 0.1.0 replaces the earlier analyzers `moodlia-analyzer-web` and `moodlia-analyzer-desktop`, which are discontinued and archived on GitHub. It is not released yet; the installers are built by the release workflow.
 
 What works:
 
@@ -19,11 +19,15 @@ What works:
 - **Course panel**, in tabs so each view shows a few things, each with a sentence on what it shows:
   - *Summary*: four indicators, a "needs your attention" list that opens the tab concerned, and the risk level with the students to look at first.
   - *Students*: a sortable, searchable table with filters (medium or high risk, with drafts, no access in 7 days), engagement against grade, and the grade distribution.
-  - *Submissions*: who submitted each assignment (graded, waiting for a grade, draft, not submitted), drafts not submitted, and assignments under half submitted.
-  - *Grading*: submissions waiting for a grade and the oldest, time from submission to grade, share of grades with written feedback, and the assignments with the lowest class average.
-  - *Pace*: student activity per week, and submissions by weekday and time of day.
+  - *Profiles*: students grouped by behaviour with explicit rules (steady, last minute, efficient, struggling, disengaged, irregular), each with who is in it and a suggested action; and a flow diagram of how students moved between risk levels since the analysis of an earlier day, with who moved up and down.
+  - *Submissions*: who submitted each assignment (graded, waiting for a grade, draft, not submitted), drafts not submitted, and assignments under half submitted; and when students submit relative to the due date: per assignment (late, last 24 hours, 1–3 days, 3–7 days, over a week before), the share submitted at the last minute or late, the typical margin, and each student's habit compared with classmates on the same assignments.
+  - *Grading*: submissions waiting for a grade and the oldest, time from submission to grade, share of grades with written feedback, the assignments with the lowest class average, and box plots of each grade item, the items where students differ most first.
+  - *Quizzes* (when the course has quizzes): per quiz, the facility and discrimination of each question as in Moodle's quiz statistics report, from each student's first finished attempt, with questions to review flagged (negative or weak discrimination, very easy, very hard), Cronbach's alpha, a facility-against-discrimination chart and a table with the start of each question's text.
+  - *Forums* (when the course has discussion forums): who replies to whom as a network, discussions a student opened that nobody answered, median time to the first reply, the share of replies with a teacher, and students who never posted or got no replies.
+  - *Completion* (when activities track completion): a student-by-activity matrix in course order with the class rate per activity and activities fewer than one in five completed.
+  - *Pace*: student activity per week, submissions by weekday and time of day, students by days since their last access with the share active in the last N days, and weeks when many students have three or more deadlines across all their courses.
   - *Settings*: checks of course settings that limit what can be measured (no due dates, completion on but unused, no discussion forum, written feedback) and the visible content by type.
-- **Student detail**, in three tabs: why the risk level and what can be done; the assignments with their status and grade, and the lowest grades; and the grade over time against the class.
+- **Student detail**, in four tabs: why the risk level and what can be done, and the student's profile and submission habit; the assignments with their status and grade, when the student submits against the class, and the lowest grades; the grade over time against the class; and the workload: deadlines per week across all the student's courses and the upcoming ones.
 - Interface in Galician, Spanish and English, chosen from the selector at the top right; it starts in the system language. The analysis returns its texts as keys with values, so they are translated too.
 - No application menu on Windows and Linux; macOS keeps the standard app, edit and window menus.
 - Read-only access to any read operation of the canonical contracts.
@@ -69,12 +73,13 @@ One token is enough when its service has everything the app uses: the Moodle app
 | Main process | `electron/main.mjs` | Window, security settings, and the IPC handlers the interface calls. |
 | Moodle session | `electron/moodle/session.mjs` | Read-only session over the adaptive adapter of the [`moodlia`](https://www.npmjs.com/package/moodlia) package, which builds on [`moodle-core-cli`](https://www.npmjs.com/package/moodle-core-cli). |
 | Course collector | `electron/analysis/collector.mjs` | Reads one course through core web services and returns the data the analysis expects. |
-| Analysis | `src/analysis/` | Student metrics, grade prediction, risk and recommendations (`courseAnalyzer.ts`, `metrics.ts`); per-activity summaries; chart data; and `insights.ts`: the grading queue and time to grade, feedback, drafts, who submitted each assignment, submissions by weekday and hour, content by type, course setting checks, and a student's grade over time against the class. TypeScript, no Moodle access. |
-| Charts | `src/charts/`, `src/ui.tsx` | SVG charts (grade distribution, engagement against grade, lines over time) with hover tooltips, and HTML bars and grids; risk levels carry a shape and a label as well as a colour. |
+| Analysis | `src/analysis/` | Student metrics, grade prediction, risk and recommendations (`courseAnalyzer.ts`, `metrics.ts`); per-activity summaries; chart data; `insights.ts`: the grading queue and time to grade, feedback, drafts, who submitted each assignment, submissions by weekday and hour, content by type, course setting checks, and a student's grade over time against the class; and `advanced.ts`: submission timing, the completion matrix, days since the last access, grade spread, quiz question statistics, the forum reply network, student profiles, risk changes between analyses and deadlines across courses. TypeScript, no Moodle access. |
+| Charts | `src/charts/`, `src/ui.tsx` | SVG charts (grade distribution, engagement against grade, lines over time, columns, box plots, quiz questions, reply network, risk flow) with hover tooltips, and HTML bars, stacked bars and grids; risk levels carry a shape and a label as well as a colour. |
+| Risk history | `electron/history.mjs` | Each course's daily risk levels on this computer, to compare analyses. |
 | Translations | `src/i18n/` | Galician, Spanish and English catalogs; `en.ts` defines the keys and the typechecker requires every catalog to have all of them. |
 | Moodle app token | `electron/moodle/mobile-token.mjs`, `electron/sign-in-window.mjs` | Reads the site's mobile settings, then gets the token with username and password through `login/token.php` or with the site's own sign-in page through `admin/tool/mobile/launch.php`. |
 | Profiles | `electron/profiles.mjs` | Saved sites; tokens encrypted with Electron `safeStorage`. |
-| Bridge | `electron/preload.cjs` | The only functions the page can call: `profiles.list/save/signInMethod/signIn/remove`, `session.connect/disconnect/courses/read` and `analysis.collect/onProgress`. |
+| Bridge | `electron/preload.cjs` | The only functions the page can call: `profiles.list/save/signInMethod/signIn/remove`, `session.connect/disconnect/courses/read` and `analysis.collect/history/onProgress`. |
 | Interface | `src/App.tsx`, `src/screens/` | React and TypeScript, built with Vite: the sign-in, course list, course panel and student screens, and the state they share (the connected site, its courses and the analyses collected in the session). |
 
 Moodle requests are made by Node in the main process, so browser CORS rules do not apply and no browser extension is needed.
@@ -93,12 +98,16 @@ The collector reads, through core web services:
 | Users | `get_enrolled_users`, and `get_course_user_profiles` when roles are missing; teachers and managers are left out |
 | Grades | `get_grade_items` once for the whole course |
 | Per student | `get_activity_completion_statuses` and `get_user_quiz_attempts_legacy` for each quiz |
+| Quiz questions | `get_quiz_attempt_review` (all pages) for each student's first finished attempt of each quiz; only the mark per question and the first 90 characters of its text are kept |
+| Workload | `get_user_courses` for each student, then `get_course_assignments` (due dates) and `get_course_quizzes` (closing dates) once for all those courses; only courses the token can read are covered, and the app says how many |
 
 Activities students cannot see yet are left out of every count: hidden modules, and assignments that do not accept submissions yet. Announcement forums are left out of forum participation, since only teachers post there. Last access is the last access to the course (Moodle's `lastcourseaccess`), not to the whole site.
 
+Each analysis day, the risk level of each student is saved on this computer (`risk-history.json` in the app's data folder: a hash of the site address, the course id, user ids and levels, at most 30 days per course), so the next analysis on another day can show who moved between levels.
+
 A source the token cannot read is listed in the result's `unavailable` field with its reason and counted as empty, so a partial token still gives an analysis. Standard web services do not expose the course log, so log-based metrics are marked unavailable. A collector that uses the MoodlIA plugin's reports is planned.
 
-Differences from `moodlia-analyzer-web`, which this app corrects:
+Differences from the discontinued `moodlia-analyzer-web`, which this app corrects:
 
 - Quiz attempts are read for each student. The earlier app requested them with user 0, which returns only the connected user's own attempts.
 - Quiz attempt grades are scaled from the attempt's `sumgrades` to the quiz grade. The earlier app read a `grade` field that Moodle does not return for attempts, so quiz averages were always empty.
@@ -161,16 +170,15 @@ The installers are not code-signed yet: Windows SmartScreen warns about an unkno
 - Tokens are encrypted with the operating system keychain (DPAPI on Windows, Keychain on macOS, the Secret Service on Linux) and never reach the page. If the system cannot encrypt, tokens are kept in memory until the app closes and are not written to disk.
 - A password typed to sign in is sent only to the site's `login/token.php` over HTTPS (HTTP only on this computer), with redirects refused, and is cleared from the form afterwards; it is never saved.
 - The Moodle sign-in window runs the site's page with no bridge to the app, in an in-memory session that is cleared afterwards. It accepts only HTTPS pages (or HTTP on this computer), refuses new windows and permission requests, and accepts a token only when Moodle signed it with this site's address and a random value created for that sign-in. The private token Moodle may add for automatic web sign-in is discarded.
-- Course and student data stay on the computer. The app has no backend and sends nothing to MoodlIA.
+- Course and student data stay on the computer. The app has no backend and sends nothing to MoodlIA. The only analysis data written to disk is the risk history: user ids and risk levels per course and day, keyed by a hash of the site address.
 
 ## Roadmap
 
 1. Check the collector against a real Moodle site with and without the plugin.
 2. A collector path that uses the MoodlIA plugin's reports (course progress, quiz results, grades in bulk) when the token offers them.
-3. Port the quiz review and the AI report from `moodlia-analyzer-web`.
+3. Port the quiz review and the AI report of the discontinued `moodlia-analyzer-web`.
 4. A dark theme.
 5. Code signing for Windows and notarization for macOS, and an app icon.
-6. Check what `moodlia-analyzer-desktop` offers that this app lacks, then retire both earlier analyzers.
 
 ## License
 

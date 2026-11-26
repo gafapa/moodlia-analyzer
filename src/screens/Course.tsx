@@ -9,10 +9,22 @@ import type { StudentAnalysis } from '../analysis/types';
 import { EngagementScatter, GradeHistogram, WeeklyLines } from '../charts/Charts';
 import { useI18n } from '../i18n';
 import type { MessageKey } from '../i18n/en';
-import { BarList, Brand, Card, Icon, Kpi, LanguageSelect, RiskMark, initials, pct, type Risk } from '../ui';
+import { BarList, Brand, Card, Icon, Kpi, LanguageSelect, Legend, RiskMark, initials, pct, type Risk } from '../ui';
+import { AccessCard, Completion, Forums, Profiles, Quizzes, SpreadCard, TimingCard, WorkloadCard } from './CourseMore';
 
-export type Tab = 'summary' | 'students' | 'submissions' | 'grading' | 'pace' | 'course';
-const TABS: Tab[] = ['summary', 'students', 'submissions', 'grading', 'pace', 'course'];
+export type Tab = 'summary' | 'students' | 'profiles' | 'submissions' | 'grading' | 'quizzes' | 'forums' | 'completion' | 'pace' | 'course';
+
+/** The tabs that apply to the course: quizzes, forums and completion only when it has them. */
+function tabsFor(entry: Analysed): Tab[] {
+  const { analysis, advanced } = entry;
+  return [
+    'summary', 'students', 'profiles', 'submissions', 'grading',
+    ...(analysis.quizzes.length > 0 ? ['quizzes' as Tab] : []),
+    ...(analysis.forums.length > 0 ? ['forums' as Tab] : []),
+    ...(advanced.completion.activities.length > 0 ? ['completion' as Tab] : []),
+    'pace', 'course'
+  ];
+}
 
 type Filter = 'all' | 'atRisk' | 'drafts' | 'inactive';
 type SortKey = 'name' | 'risk' | 'grade' | 'tasks' | 'engagement' | 'access';
@@ -79,7 +91,7 @@ export function Course({ course, siteName, entry, progress, error, onBack, onRef
         {entry && (
           <>
             <div className="tabs" role="tablist" aria-label={t('course.sections')}>
-              {TABS.map((id) => (
+              {tabsFor(entry).map((id) => (
                 <button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={tab === id} aria-controls={`panel-${id}`} className="tab" onClick={() => onTab(id)}>
                   {t(`tab.${id}` as MessageKey)}
                 </button>
@@ -89,8 +101,12 @@ export function Course({ course, siteName, entry, progress, error, onBack, onRef
             <div className="tab-panel" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
               {tab === 'summary' && <Summary entry={entry} onTab={onTab} onOpenStudent={onOpenStudent} />}
               {tab === 'students' && <Students entry={entry} onOpenStudent={onOpenStudent} />}
+              {tab === 'profiles' && <Profiles entry={entry} onOpenStudent={onOpenStudent} />}
               {tab === 'submissions' && <Submissions entry={entry} onOpenStudent={onOpenStudent} />}
               {tab === 'grading' && <Grading entry={entry} />}
+              {tab === 'quizzes' && <Quizzes entry={entry} />}
+              {tab === 'forums' && <Forums entry={entry} onOpenStudent={onOpenStudent} />}
+              {tab === 'completion' && <Completion entry={entry} onOpenStudent={onOpenStudent} />}
               {tab === 'pace' && <Pace entry={entry} />}
               {tab === 'course' && <Settings entry={entry} />}
             </div>
@@ -103,7 +119,7 @@ export function Course({ course, siteName, entry, progress, error, onBack, onRef
 
 function Summary({ entry, onTab, onOpenStudent }: { entry: Analysed; onTab: (tab: Tab) => void; onOpenStudent: (id: number) => void }) {
   const { t } = useI18n();
-  const { analysis, insights } = entry;
+  const { analysis, insights, advanced, flow } = entry;
   const m = analysis.courseMetrics;
   const passing = analysis.students.filter((student) => (student.metrics.finalGradePct ?? -1) >= analysis.passThresholdPct).length;
   const graded = analysis.students.filter((student) => student.metrics.finalGradePct !== null).length;
@@ -114,6 +130,12 @@ function Summary({ entry, onTab, onOpenStudent }: { entry: Analysed; onTab: (tab
   if (insights.drafts.count > 0) alerts.push({ title: t('alert.drafts', { count: insights.drafts.count }), detail: t('alert.draftsDetail', { count: insights.drafts.students }), color: 'var(--series-1)', tab: 'submissions' });
   if (m.inactive7d > 0) alerts.push({ title: t('alert.inactive', { count: m.inactive7d }), detail: t('alert.inactiveDetail'), color: 'var(--risk-medium)', tab: 'students' });
   if (insights.submissions.lowAssignments.length > 0) alerts.push({ title: t('alert.lowAssignments', { count: insights.submissions.lowAssignments.length }), detail: t('alert.lowAssignmentsDetail'), color: 'var(--series-1)', tab: 'submissions' });
+  if (flow && flow.worse.length > 0) alerts.push({ title: t('alert.worse', { count: flow.worse.length }), detail: t('alert.worseDetail'), color: 'var(--risk-high)', tab: 'profiles' });
+  const badQuestions = advanced.quizzes.reduce((sum, quiz) => sum + quiz.questions.filter((question) => question.flag === 'negative').length, 0);
+  if (badQuestions > 0) alerts.push({ title: t('alert.badQuestions', { count: badQuestions }), detail: t('alert.badQuestionsDetail'), color: 'var(--series-2)', tab: 'quizzes' });
+  if (advanced.network.unanswered > 0) alerts.push({ title: t('alert.unanswered', { count: advanced.network.unanswered }), detail: t('alert.unansweredDetail'), color: 'var(--series-1)', tab: 'forums' });
+  const nextWeek = advanced.workload?.overloaded.slice(4, 6).reduce((max, value) => Math.max(max, value), 0) ?? 0;
+  if (nextWeek > 0) alerts.push({ title: t('alert.overload', { count: nextWeek }), detail: t('alert.overloadDetail'), color: 'var(--series-2)', tab: 'pace' });
   const firstCheck = insights.checks.find((check) => !check.ok);
   if (firstCheck) alerts.push({ title: t(`check.${firstCheck.key}.title` as MessageKey, firstCheck.values), detail: t('alert.checkDetail'), color: '#8A96A3', tab: 'course' });
 
@@ -133,7 +155,7 @@ function Summary({ entry, onTab, onOpenStudent }: { entry: Analysed; onTab: (tab
       </section>
       <div className="grid">
         <Card title={t('summary.attention')}>
-          {alerts.length === 0 ? <p className="muted" style={{ margin: 0 }}>{t('summary.nothing')}</p> : alerts.slice(0, 4).map((alert) => (
+          {alerts.length === 0 ? <p className="muted" style={{ margin: 0 }}>{t('summary.nothing')}</p> : alerts.slice(0, 6).map((alert) => (
             <button key={alert.title} type="button" className="attention" onClick={() => onTab(alert.tab)}>
               <span className="dot" style={{ background: alert.color }} aria-hidden="true" />
               <span className="attention-text">
@@ -307,7 +329,7 @@ function Submissions({ entry, onOpenStudent }: { entry: Analysed; onOpenStudent:
         <Card
           title={t('submissions.map')}
           sub={t('submissions.mapSub')}
-          aside={<Legend items={[['graded', 'var(--series-1)'], ['pending', 'var(--series-2)'], ['draft', 'dashed'], ['none', '#E6EAEE']].map(([key, color]) => [labels[key as keyof typeof labels], color])} />}
+          aside={<Legend items={[['graded', 'var(--series-1)'], ['pending', 'var(--series-2)'], ['draft', 'dashed'], ['none', '#E6EAEE']].map(([key, color]): [string, string] => [labels[key as keyof typeof labels], color])} />}
         >
           <div className="heatmap" role="img" aria-label={t('submissions.mapAria', { students: rows.length, assignments: assignments.length })} style={{ ['--cells-min' as string]: `${assignments.length * 10}px` }}>
             {rows.map((row) => (
@@ -327,6 +349,7 @@ function Submissions({ entry, onOpenStudent }: { entry: Analysed; onOpenStudent:
           )}
         </Card>
       )}
+      <TimingCard entry={entry} />
     </>
   );
 }
@@ -370,6 +393,7 @@ function Grading({ entry }: { entry: Analysed }) {
           )}
         </Card>
       </div>
+      <SpreadCard entry={entry} />
     </>
   );
 }
@@ -388,6 +412,7 @@ function Pace({ entry }: { entry: Analysed }) {
   const shade = (value: number) => (value === 0 ? ramp[0] : ramp[Math.min(4, 1 + Math.floor((value / max) * 3.999))]);
   const days = weekdays();
   return (
+    <>
     <div className="grid" style={{ ['--min' as string]: '420px' }}>
       <Card title={t('pace.weekly')} sub={t('pace.weeklySub')}>
         {series.length === 0 ? <p className="muted" style={{ margin: 0 }}>{t('pace.none')}</p> : (
@@ -408,6 +433,9 @@ function Pace({ entry }: { entry: Analysed }) {
         <span className="scale">0 {ramp.map((color) => <span key={color} style={{ background: color }} />)} {max}</span>
       </Card>
     </div>
+    <AccessCard entry={entry} />
+    <WorkloadCard entry={entry} />
+    </>
   );
 }
 
@@ -451,16 +479,6 @@ function Settings({ entry }: { entry: Analysed }) {
           {t('settings.noLog')}
         </p>
       </Card>
-    </div>
-  );
-}
-
-function Legend({ items }: { items: string[][] }) {
-  return (
-    <div className="legend">
-      {items.map(([label, color]) => (
-        <span key={label}><span className={`key${color === 'dashed' ? ' dashed' : ''}`} style={color === 'dashed' ? undefined : { background: color }} />{label}</span>
-      ))}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 // Typed access to the functions exposed by electron/preload.cjs.
-import type { CollectedCourseData } from './analysis/types';
+import type { RiskSnapshot } from './analysis/advanced';
+import type { CollectedCourseData, RiskLevel } from './analysis/types';
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: { code: string; message: string } };
 
@@ -64,6 +65,8 @@ interface AnalyzerBridge {
   };
   analysis: {
     collect(courseId: number, course?: Record<string, unknown>): Promise<Result<CollectedCourseData>>;
+    /** Saves today's risk levels of the course on this computer; returns all saved days, oldest first. */
+    history(courseId: number, risks: Record<number, RiskLevel>): Promise<Result<RiskSnapshot[]>>;
     onProgress(listener: (progress: { courseId: number; message: string; percent: number }) => void): () => void;
   };
 }

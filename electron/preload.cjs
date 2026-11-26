@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('analyzer', Object.freeze({
   }),
   analysis: Object.freeze({
     collect: (courseId, course) => invoke('analysis:collect', courseId, course),
+    history: (courseId, risks) => invoke('analysis:history', courseId, risks),
     onProgress: (listener) => {
       const forward = (_event, progress) => listener(progress);
       ipcRenderer.on('analysis:progress', forward);

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { analyzer, type CourseSummary, type ProfileSummary, type Result, type SiteSummary } from './bridge';
 import { CourseAnalyzer } from './analysis/courseAnalyzer';
+import { advancedInsights, riskFlow, type AdvancedInsights, type RiskFlow } from './analysis/advanced';
 import { courseInsights, type CourseInsights } from './analysis/insights';
 import type { CourseAnalysis } from './analysis/types';
 import { useI18n } from './i18n';
@@ -16,6 +17,9 @@ const PASS_THRESHOLD_PCT = 50;
 export interface Analysed {
   analysis: CourseAnalysis;
   insights: CourseInsights;
+  advanced: AdvancedInsights;
+  /** Changes of risk level since the previous analysis on another day. */
+  flow: RiskFlow | null;
   collectedAt: string;
 }
 
@@ -99,7 +103,17 @@ export function App() {
       return;
     }
     const analysis = new CourseAnalyzer(PASS_THRESHOLD_PCT).analyze(result.value);
-    setAnalysed((current) => ({ ...current, [course.id]: { analysis, insights: courseInsights(analysis), collectedAt: result.value.collectedAt } }));
+    const saved = await analyzer().analysis.history(course.id, Object.fromEntries(analysis.students.map((student) => [student.id, student.riskLevel])));
+    setAnalysed((current) => ({
+      ...current,
+      [course.id]: {
+        analysis,
+        insights: courseInsights(analysis),
+        advanced: advancedInsights(analysis),
+        flow: saved.ok ? riskFlow(saved.value) : null,
+        collectedAt: result.value.collectedAt
+      }
+    }));
   };
 
   const openCourse = (course: CourseSummary, tab: Tab = 'summary') => {

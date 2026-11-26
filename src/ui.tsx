@@ -115,3 +115,39 @@ export function BarList({ rows, labelWidth = 110, passMark }: {
     </div>
   );
 }
+
+/** Rows of stacked segments, such as the submissions of each assignment by timing. */
+export function StackedRows({ rows, segments, labelWidth = 200 }: {
+  rows: Array<{ key: string | number; label: string; values: number[]; title?: string }>;
+  segments: Array<{ label: string; color: string }>;
+  labelWidth?: number;
+}) {
+  return (
+    <div className="stacked" style={{ ['--label' as string]: `${labelWidth}px` }}>
+      {rows.map((row) => {
+        const total = row.values.reduce((sum, value) => sum + value, 0);
+        return (
+          <div key={row.key} className="stacked-row">
+            <span className="stacked-label" title={row.title ?? row.label}>{row.label}</span>
+            <span className="stacked-bar" role="img" aria-label={`${row.label}: ${segments.map((segment, index) => `${segment.label} ${row.values[index]}`).join(', ')}`}>
+              {row.values.map((value, index) => (value > 0 ? (
+                <span key={segments[index].label} style={{ flex: value, background: segments[index].color }} title={`${segments[index].label}: ${value} (${Math.round((value / total) * 100)}%)`} />
+              ) : null))}
+            </span>
+            <span className="stacked-total">{total}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function Legend({ items }: { items: Array<[string, string]> }) {
+  return (
+    <div className="legend">
+      {items.map(([label, color]) => (
+        <span key={label}><span className={`key${color === 'dashed' ? ' dashed' : ''}`} style={color === 'dashed' ? undefined : { background: color }} />{label}</span>
+      ))}
+    </div>
+  );
+}

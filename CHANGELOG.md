@@ -28,3 +28,15 @@
 - Redesigned interface: a sign-in screen; a course list with search, period filter and a side-by-side comparison of analysed courses; a course panel in tabs (Summary, Students, Submissions, Grading, Pace, Settings) with a short explanation each; and a student detail in tabs (summary, assignments and grades, evolution). Bundled Plus Jakarta Sans and Inter fonts.
 - New analyses: submissions waiting for a grade and the oldest, time from submission to grade, share of grades with written feedback, drafts not submitted, who submitted each assignment, assignments under half submitted, submissions by weekday and time of day, visible content by type, course setting checks, and a student's grade over time and compared with the class. Assignments set to no grade never wait for a grade.
 - The course list includes each course's dates, completion setting and last access; the site check before signing in returns the site name, which names the saved site.
+- Further analyses, chosen from learning analytics research and Moodle's own reports:
+  - When students submit relative to the due date, per assignment and per student, with each student's habit (well ahead, on time, last minute, usually late) relative to classmates on the same assignments.
+  - Quiz question statistics as in Moodle's quiz statistics report: facility, discrimination against the rest of the quiz, Cronbach's alpha and questions to review, from each student's first finished attempt read with `get_quiz_attempt_review`. Marks formatted with a decimal comma are read correctly.
+  - The forum reply network (who replies to whom), discussions a student opened that nobody answered, time to the first reply, the share of replies with a teacher, and students who never posted or got no replies.
+  - A student-by-activity completion matrix with little-used activities.
+  - Students by days since their last access, and the share active in the last N days.
+  - Box plots of each grade item.
+  - Student profiles from explicit rules (steady, last minute, efficient, struggling, disengaged, irregular) with a suggested action each.
+  - Changes of risk level since the analysis of an earlier day, as a flow diagram, from a risk history kept on this computer.
+  - Deadlines per week across all the students' courses (`get_user_courses`, `get_course_assignments`, `get_course_quizzes`), with weeks when students have three or more, and a workload tab in the student detail.
+  - New Profiles, Quizzes, Forums and Completion tabs (the last three only when the course has them), and new alerts in the summary.
+- Replaces the earlier analyzers `moodlia-analyzer-web` and `moodlia-analyzer-desktop`, which are discontinued and archived on GitHub.

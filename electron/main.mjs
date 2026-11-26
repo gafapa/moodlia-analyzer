@@ -6,6 +6,7 @@ import { MoodleSession, SessionError, normalizeSiteUrl } from './moodle/session.
 import { readMobileConfig, requestTokenWithPassword, signInMethod } from './moodle/mobile-token.mjs';
 import { CourseCollector } from './analysis/collector.mjs';
 import { ProfileStore } from './profiles.mjs';
+import { RiskHistory, historyKey } from './history.mjs';
 import { signInForMobileToken } from './sign-in-window.mjs';
 import { smokeSignIn } from './smoke-sign-in.mjs';
 
@@ -20,6 +21,8 @@ let mainWindow = null;
 let current = null;
 /** @type {ProfileStore} */
 let profiles;
+/** @type {RiskHistory} */
+let history;
 
 /** Only the app's own page may call the main process. @param {Electron.IpcMainInvokeEvent} event */
 function assertTrustedSender(event) {
@@ -81,6 +84,12 @@ function registerHandlers() {
     const sender = mainWindow?.webContents;
     const collector = new CourseCollector(requireSession(), (message, percent) => sender?.send('analysis:progress', { courseId: id, message, percent }));
     return collector.collect(id, course && typeof course === 'object' ? course : undefined);
+  });
+  // Saves today's risk levels of a course on this computer and returns the earlier ones.
+  handle('analysis:history', (courseId, risks) => {
+    const id = Number(courseId);
+    if (!Number.isInteger(id) || id < 1) throw new TypeError('A course id is required.');
+    return history.record(historyKey(requireSession().summary().siteUrl, id), risks);
   });
   handle('session:read', (provider, operation, parameters) => requireSession().read(/** @type {any} */ (String(provider)), String(operation), parameters && typeof parameters === 'object' ? parameters : {}));
 }
@@ -157,6 +166,7 @@ app.whenReady().then(() => {
     : null);
   if (process.env.MOODLIA_ANALYZER_SMOKE === '1') app.setPath('userData', path.join(app.getPath('temp'), `moodlia-analyzer-smoke-${process.pid}`));
   profiles = new ProfileStore(app.getPath('userData'), safeStorage);
+  history = new RiskHistory(app.getPath('userData'));
   session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({ responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [contentSecurityPolicy()] } });
