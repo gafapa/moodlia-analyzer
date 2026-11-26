@@ -1,10 +1,14 @@
 // @ts-check
-import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, safeStorage, session, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MoodleSession, SessionError } from './moodle/session.mjs';
+import { MoodleSession, SessionError, normalizeSiteUrl } from './moodle/session.mjs';
+import { readMobileConfig, requestTokenWithPassword, signInMethod } from './moodle/mobile-token.mjs';
 import { CourseCollector } from './analysis/collector.mjs';
 import { ProfileStore } from './profiles.mjs';
+import { RiskHistory, historyKey } from './history.mjs';
+import { signInForMobileToken } from './sign-in-window.mjs';
+import { smokeSignIn } from './smoke-sign-in.mjs';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const devServerUrl = process.env.MOODLIA_ANALYZER_DEV_URL ?? '';
@@ -17,6 +21,8 @@ let mainWindow = null;
 let current = null;
 /** @type {ProfileStore} */
 let profiles;
+/** @type {RiskHistory} */
+let history;
 
 /** Only the app's own page may call the main process. @param {Electron.IpcMainInvokeEvent} event */
 function assertTrustedSender(event) {
@@ -48,6 +54,21 @@ function registerHandlers() {
   handle('profiles:list', () => profiles.list());
   handle('profiles:save', (input) => profiles.save(input ?? {}));
   handle('profiles:remove', (id) => profiles.remove(String(id)));
+  // How the site gives Moodle app tokens: username and password, or its own sign-in page.
+  handle('profiles:signInMethod', async (url) => {
+    const config = await readMobileConfig(normalizeSiteUrl(String(url ?? '')).url);
+    return { method: signInMethod(config), siteName: config.siteName };
+  });
+  // Gets a Moodle app token and saves it as the core web services token of the profile.
+  // The password is only sent to the Moodle site; the token stays in the main process.
+  handle('profiles:signIn', async (input) => {
+    const request = input && typeof input === 'object' ? input : {};
+    if (!String(request.name ?? '').trim()) throw new TypeError('A profile needs a name and a Moodle address.');
+    const coreToken = request.password
+      ? await requestTokenWithPassword(String(request.url ?? ''), String(request.username ?? ''), String(request.password))
+      : await signInForMobileToken(mainWindow, String(request.url ?? ''));
+    return profiles.save({ id: request.id, name: request.name, url: request.url, token: request.token, coreToken });
+  });
   handle('session:connect', async (request) => {
     const profile = request?.profileId ? await profiles.load(String(request.profileId)) : request ?? {};
     const next = new MoodleSession({ name: String(profile.name ?? 'Moodle'), url: String(profile.url ?? ''), token: profile.token, coreToken: profile.coreToken });
@@ -63,6 +84,12 @@ function registerHandlers() {
     const sender = mainWindow?.webContents;
     const collector = new CourseCollector(requireSession(), (message, percent) => sender?.send('analysis:progress', { courseId: id, message, percent }));
     return collector.collect(id, course && typeof course === 'object' ? course : undefined);
+  });
+  // Saves today's risk levels of a course on this computer and returns the earlier ones.
+  handle('analysis:history', (courseId, risks) => {
+    const id = Number(courseId);
+    if (!Number.isInteger(id) || id < 1) throw new TypeError('A course id is required.');
+    return history.record(historyKey(requireSession().summary().siteUrl, id), risks);
   });
   handle('session:read', (provider, operation, parameters) => requireSession().read(/** @type {any} */ (String(provider)), String(operation), parameters && typeof parameters === 'object' ? parameters : {}));
 }
@@ -106,7 +133,8 @@ function createWindow() {
 
 /**
  * Startup check used by `npm run smoke`: the page loads, the bridge is present, Node is not
- * reachable from the page, and a bridge call returns. Prints one JSON line and quits.
+ * reachable from the page, a bridge call returns, and the Moodle sign-in window gets a token
+ * from a fake site. Prints one JSON line and quits.
  * @param {BrowserWindow} window
  */
 function runSmokeCheck(window) {
@@ -118,19 +146,27 @@ function runSmokeCheck(window) {
         rendered: document.getElementById('root').childElementCount > 0,
         bridge: typeof window.analyzer?.session?.connect === 'function' && typeof window.analyzer?.analysis?.collect === 'function',
         nodeHidden: typeof require === 'undefined' && typeof process === 'undefined',
+        signInBridge: typeof window.analyzer?.profiles?.signIn === 'function',
         profiles: (await window.analyzer.profiles.list()).ok
       }))()`);
+      result.signIn = await smokeSignIn();
     } catch (error) {
-      result = { error: String(error) };
+      result = { ...result, error: String(error) };
     }
     console.log(`SMOKE ${JSON.stringify(result)}`);
-    app.exit(result?.rendered && result.bridge && result.nodeHidden && result.profiles ? 0 : 1);
+    app.exit(result?.rendered && result.bridge && result.nodeHidden && result.profiles && result.signInBridge && result.signIn ? 0 : 1);
   });
 }
 
 app.whenReady().then(() => {
+  // No application menu: the app has its own controls. macOS keeps the standard app, edit
+  // and window menus, without which Quit, copy and paste shortcuts do not work there.
+  Menu.setApplicationMenu(process.platform === 'darwin'
+    ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }])
+    : null);
   if (process.env.MOODLIA_ANALYZER_SMOKE === '1') app.setPath('userData', path.join(app.getPath('temp'), `moodlia-analyzer-smoke-${process.pid}`));
   profiles = new ProfileStore(app.getPath('userData'), safeStorage);
+  history = new RiskHistory(app.getPath('userData'));
   session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({ responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [contentSecurityPolicy()] } });

@@ -21,7 +21,9 @@ const responses = {
   core_enrol_get_enrolled_users: [{ id: 7, fullname: 'Ana', roles: [{ shortname: 'student' }] }],
   gradereport_user_get_grade_items: { usergrades: [{ userid: 7, gradeitems: [{ itemtype: 'course', graderaw: 7, grademax: 10 }] }], warnings: [] },
   core_completion_get_activities_completion_status: { statuses: [{ cmid: 1, state: 1 }], warnings: [] },
-  mod_quiz_get_user_attempts: { attempts: [{ id: 1, quiz: 40, userid: 7, state: 'finished', sumgrades: 15 }], warnings: [] }
+  mod_quiz_get_user_attempts: { attempts: [{ id: 1, quiz: 40, userid: 7, attempt: 1, state: 'finished', sumgrades: 15 }], warnings: [] },
+  mod_quiz_get_attempt_review: { grade: 7.5, questions: [{ slot: 1, type: 'multichoice', questionnumber: '1', maxmark: 1, mark: '1,00', html: '<div class="qtext">Pick one</div><div class="ablock">a</div>' }], warnings: [] },
+  core_enrol_get_users_courses: [{ id: 12, shortname: 'C12' }]
 };
 
 async function fakeMoodle() {
@@ -65,6 +67,12 @@ test('a course is collected from a site without the plugin', async () => {
     assert.equal(sent('mod_quiz_get_user_attempts').get('userid'), '7');
     assert.equal(sent('mod_forum_get_discussion_posts').get('discussionid'), '70');
     assert.equal(sent('core_completion_get_activities_completion_status').get('userid'), '7');
+    assert.equal(sent('mod_quiz_get_attempt_review').get('attemptid'), '1');
+    assert.equal(sent('mod_quiz_get_attempt_review').get('page'), '-1');
+    assert.equal(sent('core_enrol_get_users_courses').get('userid'), '7');
+    assert.deepEqual(data.quizQuestions[40].slots.map((slot) => slot.text), ['Pick one']);
+    assert.deepEqual(data.quizQuestions[40].attempts, [{ userid: 7, grade: 7.5, marks: { 1: 1 } }]);
+    assert.deepEqual(data.workload.coursesByUser, { 7: [12] });
     assert.ok(moodle.calls.every((call) => call.form.get('wstoken') === 'teacher-token'));
   } finally {
     await moodle.close();

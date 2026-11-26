@@ -9,5 +9,34 @@
 - Course analysis: a collector in the main process reads one course through core web services with progress updates, and the student metrics, grade prediction, risk and recommendation analysis of `moodlia-analyzer-web` runs on the result. Sources the token cannot read are reported and counted as empty.
 - Fixes over `moodlia-analyzer-web`: quiz attempts are read per student instead of only the connected user's; attempt grades are scaled from `sumgrades`, so quiz averages are no longer empty; course profiles use the `userlist` structure; current forum posts are normalized; grades come from one course-wide call.
 - Every read names its provider (`moodlia` or `core`), because both contracts share operation names with different parameters.
-- Provisional interface to exercise the connection layer.
+- A first interface to exercise the connection layer, since replaced by the redesign below.
 - Unit tests, end-to-end tests against a fake Moodle REST endpoint (connection with and without the plugin, and a full course collection), Vitest analysis tests, and a startup smoke check.
+- Installers built with `electron-builder`: Windows x64 (installer and zip), macOS Apple silicon and Intel (dmg and zip, signed ad hoc), Linux x64 (AppImage and tar.gz). Not code-signed yet.
+- `npm run package:dir`, `npm run package` and `npm run smoke:packaged`; the smoke check can run on the packaged app.
+- CI on Windows, Ubuntu and macOS, including a smoke check of the packaged app, plus dependency audits and a check of the project page.
+- Release workflow: a version tag builds and checks the installers on the three systems and creates a draft GitHub release with SHA-256 checksums.
+- Project page on GitHub Pages that lists the installers of the latest release.
+- Sign in to Moodle to get a token for the Moodle mobile app service, saved as the profile's core web services token, following the site's mobile login setting: with username and password through `login/token.php` on sites that log in inside the app (the Moodle default), or on the site's own sign-in page through `admin/tool/mobile/launch.php` on sites that log in through a browser, where the password never reaches the app and the token's signature is checked against the site and a per-sign-in random value. The password is not saved. Saved sites can sign in again.
+- When the system cannot encrypt, tokens are kept in memory until the app closes, so a site can still be used without writing them to disk.
+- The smoke check also runs the sign-in window against a fake Moodle site.
+- The course view shows all the analysis computes: summary cards, grade distribution, a sortable student table with last access, assignments, quizzes, forum posts and completion, a detail per student (risk factors, recommendations, indicators, grade items), per-assignment, quiz and forum summaries, and the data sources read. A course can be collected again.
+- Charts in the course view: students by risk level, grade distribution with the pass mark, engagement against grade per student (select a point to open the student), submissions per assignment on time and late in due-date order, student activity per week, and each student's grade items. Hover tooltips, keyboard focus, light and dark colours, and a shape and label per risk level.
+- Interface in Galician, Spanish and English, from a selector at the top right that starts in the system language. Analysis texts (risk factors and recommendations) are returned as keys and translated.
+- The application menu is removed on Windows and Linux; macOS keeps the standard app, edit and window menus.
+- Hidden activities and assignments that do not accept submissions yet are no longer counted as missing work; the course view says how many were left out. Announcement forums no longer count for forum participation.
+- Last access is the last access to the course (`lastcourseaccess`) instead of the last access to the whole site.
+- Redesigned interface: a sign-in screen; a course list with search, period filter and a side-by-side comparison of analysed courses; a course panel in tabs (Summary, Students, Submissions, Grading, Pace, Settings) with a short explanation each; and a student detail in tabs (summary, assignments and grades, evolution). Bundled Plus Jakarta Sans and Inter fonts.
+- New analyses: submissions waiting for a grade and the oldest, time from submission to grade, share of grades with written feedback, drafts not submitted, who submitted each assignment, assignments under half submitted, submissions by weekday and time of day, visible content by type, course setting checks, and a student's grade over time and compared with the class. Assignments set to no grade never wait for a grade.
+- The course list includes each course's dates, completion setting and last access; the site check before signing in returns the site name, which names the saved site.
+- Further analyses, chosen from learning analytics research and Moodle's own reports:
+  - When students submit relative to the due date, per assignment and per student, with each student's habit (well ahead, on time, last minute, usually late) relative to classmates on the same assignments.
+  - Quiz question statistics as in Moodle's quiz statistics report: facility, discrimination against the rest of the quiz, Cronbach's alpha and questions to review, from each student's first finished attempt read with `get_quiz_attempt_review`. Marks formatted with a decimal comma are read correctly.
+  - The forum reply network (who replies to whom), discussions a student opened that nobody answered, time to the first reply, the share of replies with a teacher, and students who never posted or got no replies.
+  - A student-by-activity completion matrix with little-used activities.
+  - Students by days since their last access, and the share active in the last N days.
+  - Box plots of each grade item.
+  - Student profiles from explicit rules (steady, last minute, efficient, struggling, disengaged, irregular) with a suggested action each.
+  - Changes of risk level since the analysis of an earlier day, as a flow diagram, from a risk history kept on this computer.
+  - Deadlines per week across all the students' courses (`get_user_courses`, `get_course_assignments`, `get_course_quizzes`), with weeks when students have three or more, and a workload tab in the student detail.
+  - New Profiles, Quizzes, Forums and Completion tabs (the last three only when the course has them), and new alerts in the summary.
+- Replaces the earlier analyzers `moodlia-analyzer-web` and `moodlia-analyzer-desktop`, which are discontinued and archived on GitHub.

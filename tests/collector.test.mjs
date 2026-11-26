@@ -5,10 +5,14 @@ import { CourseCollector, attemptGrade, isStudent, normalizePost, parseGradeItem
 /** Core payloads keyed by operation; a function value receives the parameters. */
 const COURSE = 12;
 const payloads = {
-  get_course_contents: [{ id: 1, name: 'Week 1', modules: [] }],
-  get_course_assignments: { courses: [{ id: COURSE, assignments: [{ id: 30, name: 'Essay', duedate: 1_800_000_000 }] }] },
+  get_course_contents: [{ id: 1, name: 'Week 1', modules: [{ id: 300, modname: 'assign', visible: 1 }, { id: 301, modname: 'assign', visible: 0 }] }],
+  get_course_assignments: { courses: [{ id: COURSE, assignments: [
+    { id: 30, cmid: 300, name: 'Essay', duedate: 1_800_000_000 },
+    { id: 31, cmid: 301, name: 'Hidden essay' },
+    { id: 32, cmid: 302, name: 'Opens later', allowsubmissionsfromdate: 4_000_000_000 }
+  ] }] },
   get_course_quizzes: { quizzes: [{ id: 40, name: 'Quiz', grade: 10, sumgrades: 20 }] },
-  get_course_forums: [{ id: 50, name: 'Forum' }],
+  get_course_forums: [{ id: 50, name: 'Forum', type: 'general' }, { id: 51, name: 'Announcements', type: 'news' }],
   get_course_pages: { pages: [{ id: 60 }] },
   get_course_resources: { resources: [] },
   get_assignment_submissions: { assignments: [{ assignmentid: 30, submissions: [{ userid: 7, status: 'submitted', timemodified: 1_799_000_000 }] }] },
@@ -16,14 +20,16 @@ const payloads = {
   get_forum_discussions: { discussions: [{ id: 900, discussion: 70 }] },
   get_forum_discussion_posts: { posts: [{ id: 900, author: { id: 7 }, parentid: 0, timecreated: 1_799_500_000 }, { id: 901, author: { id: 8 }, parentid: 900, timecreated: 1_799_600_000 }] },
   get_enrolled_users: [
-    { id: 7, fullname: 'Ana', roles: [{ shortname: 'student' }], lastaccess: 1_799_900_000 },
+    { id: 7, fullname: 'Ana', roles: [{ shortname: 'student' }], lastaccess: 1_799_900_000, lastcourseaccess: 1_799_000_000 },
     { id: 8, fullname: 'Teacher', roles: [{ shortname: 'editingteacher' }] },
     { id: 9, fullname: 'Luis' }
   ],
   get_course_user_profiles: [{ id: 9, roles: [{ shortname: 'student' }], fullname: 'Luis Pérez' }],
   get_grade_items: { usergrades: [{ userid: 7, gradeitems: [{ itemtype: 'course', graderaw: 7, grademax: 10 }, { itemtype: 'mod', itemmodule: 'assign', itemname: 'Essay', graderaw: 8, grademax: 10 }] }] },
   get_activity_completion_statuses: (parameters) => ({ statuses: parameters.user_id === 7 ? [{ state: 1 }, { state: 0 }] : [] }),
-  get_user_quiz_attempts_legacy: (parameters) => ({ attempts: parameters.user_id === 7 ? [{ id: 1, state: 'finished', sumgrades: 15, userid: 7 }] : [] })
+  get_user_quiz_attempts_legacy: (parameters) => ({ attempts: parameters.user_id === 7 ? [{ id: 1, state: 'finished', sumgrades: 15, userid: 7 }] : [] }),
+  get_quiz_attempt_review: { grade: 7.5, questions: [{ slot: 1, type: 'truefalse', questionnumber: '1', maxmark: 1, mark: '1.00', html: '<div class="qtext">Q</div>' }] },
+  get_user_courses: [{ id: COURSE, shortname: 'BIO' }]
 };
 
 function fakeSession({ missing = [] } = {}) {
@@ -57,6 +63,14 @@ test('a course is collected through core web services in the analysis shape', as
   assert.equal(data.assignmentGradesByAssign[30].length, 1);
   assert.equal(data.logsAvailable, false);
   assert.deepEqual(data.unavailable, {});
+  // Hidden activities and assignments not open yet do not count.
+  assert.deepEqual(data.assignments.map((assignment) => assignment.id), [30]);
+  assert.deepEqual(data.excluded, { hidden: 1, notOpenYet: 1 });
+  // Announcement forums do not count for participation.
+  assert.deepEqual(data.forums.map((forum) => forum.id), [50]);
+  // Last access is to the course when Moodle gives it.
+  assert.equal(ana.lastaccess, 1_799_000_000);
+  assert.equal(ana.lastSiteAccess, 1_799_900_000);
   assert.equal(progress.at(-1), 100);
   // Grades come from one course-wide call, attempts are read per student.
   assert.equal(session.calls.filter(([, operation]) => operation === 'get_grade_items').length, 1);
@@ -82,4 +96,37 @@ test('helpers normalize Moodle records', () => {
   assert.equal(attemptGrade({ grade: 4 }, {}), 4);
   assert.equal(attemptGrade({ sumgrades: null }, { sumgrades: 10, grade: 10 }), null);
   assert.equal(parseGradeItems({}).items.length, 0);
+});
+
+test('reads localized marks and short question texts', async () => {
+  const { parseMark, questionText, summarizeQuizReviews } = await import('../electron/analysis/collector.mjs');
+  assert.equal(parseMark('1,00'), 1);
+  assert.equal(parseMark('0.50'), 0.5);
+  assert.equal(parseMark(null), null);
+  assert.equal(questionText('<div class="qtext"><p>What is&nbsp;<b>2 + 2</b>?</p></div><div class="answer">4</div>'), 'What is 2 + 2 ?');
+  assert.equal(questionText('<div>no text</div>'), '');
+  const summary = summarizeQuizReviews([
+    { userid: 7, review: { grade: 8, questions: [{ slot: 1, type: 'multichoice', questionnumber: '1', maxmark: 1, mark: '1,00', html: '<div class="qtext">A</div>' }, { slot: 2, type: 'description', html: '' }] } },
+    { userid: 8, review: { grade: 2, questions: [{ slot: 1, type: 'multichoice', questionnumber: '1', maxmark: 1, mark: '0,00', html: '<div class="qtext">B</div>' }] } }
+  ]);
+  assert.deepEqual(summary.slots, [{ slot: 1, number: '1', type: 'multichoice', maxmark: 1, text: 'A', varies: true }]);
+  assert.deepEqual(summary.attempts, [{ userid: 7, grade: 8, marks: { 1: 1 } }, { userid: 8, grade: 2, marks: { 1: 0 } }]);
+});
+
+test('collects deadlines from the students\' courses through read operations only', async () => {
+  const calls = [];
+  const session = {
+    async read(provider, operation, parameters) {
+      calls.push(operation);
+      if (operation === 'get_user_courses') return parameters.user_id === 7 ? [{ id: 1, shortname: 'MAT' }, { id: 2, shortname: 'ART', visible: 0 }] : [{ id: 3, shortname: 'HIS' }];
+      if (operation === 'get_course_assignments') return { courses: [{ id: 1, assignments: [{ name: 'A', duedate: 100 }, { name: 'No date', duedate: 0 }] }, { id: 3, assignments: [] }] };
+      if (operation === 'get_course_quizzes') return { quizzes: [{ course: 3, name: 'Q', timeclose: 200 }] };
+      throw new Error('unexpected');
+    }
+  };
+  const workload = await new CourseCollector(session).collectWorkload([7, 8]);
+  assert.deepEqual(workload.coursesByUser, { 7: [1], 8: [3] });
+  assert.deepEqual(workload.deadlines, [{ courseId: 1, kind: 'assign', name: 'A', due: 100 }, { courseId: 3, kind: 'quiz', name: 'Q', due: 200 }]);
+  assert.deepEqual(workload.covered, { assignments: [1, 3], quizzes: [3] });
+  assert.ok(calls.every((operation) => operation.startsWith('get_')));
 });

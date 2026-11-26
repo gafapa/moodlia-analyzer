@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MoodlIA Analyzer</title>
+  <meta name="description" content="Desktop app for Moodle course and student analysis. Connects to any Moodle site with a web service token, with or without the MoodlIA plugin.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="./"><img src="favicon.svg" alt="" width="28" height="28">MoodlIA Analyzer</a>
+      <nav aria-label="Main">
+        <a href="#download">Download</a>
+        <a href="#how">How it works</a>
+        <a href="#privacy">Privacy</a>
+        <a href="https://github.com/gafapa/moodlia-analyzer">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero wrap">
+      <p class="status" id="status">Version 0.1.0 is in development. There is no release yet.</p>
+      <h1>See how every student is doing in a Moodle course</h1>
+      <p class="lead">A desktop app that reads one course from your Moodle site and shows engagement, predicted grades, risk and recommendations for each student. It works on any Moodle site with a web service token, and uses the MoodlIA plugin when the site has it.</p>
+      <p class="actions">
+        <a class="button primary" href="#download">Download</a>
+        <a class="button" href="https://github.com/gafapa/moodlia-analyzer#getting-started">Build from source</a>
+      </p>
+    </section>
+
+    <section class="wrap grid" aria-label="Features">
+      <article>
+        <h2>Any Moodle site</h2>
+        <p>Sign in as you do in the Moodle app and the app gets the same kind of token. No plugin or browser extension is needed, and browser CORS limits do not apply because requests are made by the app.</p>
+      </article>
+      <article>
+        <h2>Read only</h2>
+        <p>The app refuses every operation that changes Moodle data. It reads course structure, assignments, quizzes, forums, grades and completion.</p>
+      </article>
+      <article>
+        <h2>Partial access is fine</h2>
+        <p>If the token cannot read a source, the analysis still runs and the app lists what it could not read and why.</p>
+      </article>
+    </section>
+
+    <section class="wrap" id="download">
+      <h2>Download</h2>
+      <div id="downloads" class="downloads" aria-live="polite">
+        <p>No installers have been published yet. Releases will appear on the <a href="https://github.com/gafapa/moodlia-analyzer/releases">GitHub releases page</a>.</p>
+      </div>
+      <details class="note">
+        <summary>The installers are not signed yet</summary>
+        <ul>
+          <li><strong>Windows:</strong> SmartScreen may warn about an unknown publisher. Choose <em>More info</em>, then <em>Run anyway</em>.</li>
+          <li><strong>macOS:</strong> the app is signed ad hoc, not notarized. Open it once with right click, <em>Open</em>, or allow it in <em>System Settings → Privacy &amp; Security</em>.</li>
+          <li><strong>Linux:</strong> make the AppImage executable (<code>chmod +x</code>) and run it.</li>
+        </ul>
+        <p>Each release lists the SHA-256 checksum of every file.</p>
+      </details>
+    </section>
+
+    <section class="wrap" id="how">
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li><strong>Add your site.</strong> Enter its address and sign in as you do in the Moodle app: with your username and password, or on your Moodle's own sign-in page if the site uses one. The app gets the same kind of token as the Moodle app, encrypts it with your operating system's keychain and does not save your password. You can also enter a token by hand.</li>
+        <li><strong>Connect.</strong> The app checks which services answer: standard Moodle web services, the MoodlIA plugin, or both.</li>
+        <li><strong>Pick a course.</strong> The app collects the course data and analyses each student: engagement, predicted grade, risk level and recommendations.</li>
+      </ol>
+    </section>
+
+    <section class="wrap" id="privacy">
+      <h2>Privacy</h2>
+      <p>Course and student data stay on your computer. The app has no server and sends nothing to MoodlIA. Tokens never reach the app's interface and are not written to disk when the system cannot encrypt them.</p>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <p>MIT licence. Part of <a href="https://moodlia.com">MoodlIA</a>. <a href="https://github.com/gafapa/moodlia-analyzer/blob/main/CHANGELOG.md">Changelog</a></p>
+  </footer>
+
+  <script src="downloads.js"></script>
+</body>
+</html>

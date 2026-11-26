@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('analyzer', Object.freeze({
   profiles: Object.freeze({
     list: () => invoke('profiles:list'),
     save: (profile) => invoke('profiles:save', profile),
+    signInMethod: (url) => invoke('profiles:signInMethod', url),
+    signIn: (profile) => invoke('profiles:signIn', profile),
     remove: (id) => invoke('profiles:remove', id)
   }),
   session: Object.freeze({
@@ -18,6 +20,7 @@ contextBridge.exposeInMainWorld('analyzer', Object.freeze({
   }),
   analysis: Object.freeze({
     collect: (courseId, course) => invoke('analysis:collect', courseId, course),
+    history: (courseId, risks) => invoke('analysis:history', courseId, risks),
     onProgress: (listener) => {
       const forward = (_event, progress) => listener(progress);
       ipcRenderer.on('analysis:progress', forward);

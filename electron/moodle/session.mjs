@@ -156,7 +156,12 @@ export class MoodleSession {
       id: Number(course.id),
       shortName: String(course.shortname ?? ''),
       fullName: String(course.fullname ?? ''),
-      visible: course.visible !== 0 && course.visible !== false
+      visible: course.visible !== 0 && course.visible !== false,
+      startDate: Number(course.startdate) || null,
+      endDate: Number(course.enddate) || null,
+      enrolledCount: Number.isFinite(Number(course.enrolledusercount)) ? Number(course.enrolledusercount) : null,
+      enableCompletion: Boolean(course.enablecompletion),
+      lastAccess: Number(course.lastaccess) || null
     }));
   }
 }

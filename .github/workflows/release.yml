@@ -1,0 +1,99 @@
+name: Release
+
+# A version tag (v0.1.0) builds the installers on Windows, macOS and Linux after the full
+# check, and creates a draft GitHub release with them and their SHA-256 checksums. The draft
+# is published by hand after review. A manual run builds the installers as workflow
+# artifacts only.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Package (${{ matrix.os }})
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      DISPLAY_PREFIX: ${{ matrix.os == 'ubuntu-latest' && 'xvfb-run -a ' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Check that the tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${version}." >&2
+            exit 1
+          fi
+      - run: npm ci
+      - name: Download the Electron binary
+        run: node node_modules/electron/install.js
+      - name: Allow the Chromium sandbox on Linux
+        if: runner.os == 'Linux'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: npm run typecheck
+      - run: npm test
+      - name: Smoke check (development Electron)
+        shell: bash
+        run: ${DISPLAY_PREFIX}npm run smoke
+      - name: Build the installers
+        run: npm run package
+      - name: Smoke check (packaged app)
+        shell: bash
+        run: ${DISPLAY_PREFIX}npm run smoke:packaged
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ runner.os }}
+          if-no-files-found: error
+          path: |
+            release/*.exe
+            release/*.zip
+            release/*.dmg
+            release/*.AppImage
+            release/*.tar.gz
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          path: installers
+          merge-multiple: true
+      - name: Write checksums
+        working-directory: installers
+        run: sha256sum * > "SHA256SUMS-${GITHUB_REF_NAME#v}.txt" && cat SHA256SUMS-*.txt
+      - name: Release notes from the changelog
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v heading="## ${version}" 'index($0, heading) == 1 { found = 1; next } found && /^## / { exit } found' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "CHANGELOG.md has no section for ${version}." >&2; exit 1; }
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" installers/* --draft --verify-tag --title "MoodlIA Analyzer ${GITHUB_REF_NAME#v}" --notes-file notes.md

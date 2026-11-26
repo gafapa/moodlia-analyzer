@@ -16,9 +16,16 @@ concurrency:
 
 jobs:
   check:
-    # Windows runs the Electron smoke check without a virtual display or sandbox changes.
-    runs-on: windows-latest
-    timeout-minutes: 20
+    name: Check (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      # Linux runners have no display; the Electron checks run under Xvfb there.
+      DISPLAY_PREFIX: ${{ matrix.os == 'ubuntu-latest' && 'xvfb-run -a ' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,5 +35,35 @@ jobs:
       - run: npm ci
       - name: Download the Electron binary
         run: node node_modules/electron/install.js
-      - run: npm run check
-      - run: npm audit --audit-level=moderate
+      - name: Allow the Chromium sandbox on Linux
+        if: runner.os == 'Linux'
+        # Ubuntu 24.04 blocks the unprivileged user namespaces the Chromium sandbox uses.
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: npm run typecheck
+      - run: npm test
+      - name: Smoke check (development Electron)
+        shell: bash
+        run: ${DISPLAY_PREFIX}npm run smoke
+      - name: Package the app for this runner
+        shell: bash
+        run: npm run package:dir -- --${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
+      - name: Smoke check (packaged app)
+        shell: bash
+        run: ${DISPLAY_PREFIX}npm run smoke:packaged
+
+  audit-and-site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Shipped dependencies, moderate and above
+        run: npm audit --omit=dev --audit-level=moderate
+      - name: All dependencies, high and above
+        run: npm audit --audit-level=high
+      - name: Check the Pages site
+        run: node scripts/check-site.mjs

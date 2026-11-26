@@ -47,7 +47,7 @@ test('a site without the plugin is read through core web services', async () => 
     assert.equal(summary.siteName, 'Fake Moodle');
     assert.equal(summary.moodlia.available, false);
     assert.equal(summary.core.available, true);
-    assert.deepEqual(await session.listCourses(), [{ id: 3, shortName: 'BIO', fullName: 'Biology', visible: true }]);
+    assert.deepEqual(await session.listCourses(), [{ id: 3, shortName: 'BIO', fullName: 'Biology', visible: true, startDate: null, endDate: null, enrolledCount: null, enableCompletion: false, lastAccess: null }]);
     assert.ok(moodle.calls.every((call) => call.token === 'core-only-token'));
   } finally {
     await moodle.close();
