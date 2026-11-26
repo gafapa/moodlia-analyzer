@@ -1,6 +1,7 @@
 // Course and student insights beyond the per-student metrics: the grading queue, feedback,
 // drafts, who submitted each assignment, when students work, and course set-up checks.
 // Everything is computed from data the collector already read; only students count.
+import { countsAsHandedIn, gradedAssignmentIds } from "./delivery";
 import type { CourseAnalysis, StudentAnalysis } from "./types";
 
 const DAY = 86400;
@@ -21,7 +22,8 @@ const median = (values: number[]): number | null => {
 /** Upper bounds, in days, of the grading-time buckets; the last bucket is open. */
 export const TURNAROUND_BUCKETS = [3, 7, 14, 30] as const;
 
-export type CellStatus = "graded" | "pending" | "draft" | "none";
+/** "offline" is graded work with no submission in Moodle, handed in on paper for example. */
+export type CellStatus = "graded" | "offline" | "pending" | "draft" | "none";
 
 export interface AssignmentRef {
   id: number;
@@ -127,14 +129,18 @@ export function courseInsights(analysis: CourseAnalysis, now = Math.floor(Date.n
     }
   }
 
-  // Who submitted each assignment.
+  // Who handed in each assignment. Graded work with no submission counts as handed in.
   const rows: SubmissionRow[] = students.map((student) => {
+    const gradedInBook = gradedAssignmentIds(student);
     const cells = assignments.map((assignment): CellStatus => {
       const key = `${assignment.id}:${student.id}`;
       const submission = submissionOf.get(key);
       const status = String(submission?.status ?? "new");
-      if (status === "draft") return "draft";
-      if (!submission || UNSUBMITTED.has(status)) return "none";
+      if (!submission || UNSUBMITTED.has(status)) {
+        const grade = gradeOf.get(key);
+        if (gradedInBook.has(assignment.id) || (grade && countsAsHandedIn(num(grade.grade)))) return "offline";
+        return status === "draft" ? "draft" : "none";
+      }
       if (ungraded.has(assignment.id)) return "graded";
       return gradeOf.has(key) && String(submission.gradingstatus ?? "") !== "notgraded" ? "graded" : "pending";
     });
@@ -142,14 +148,14 @@ export function courseInsights(analysis: CourseAnalysis, now = Math.floor(Date.n
       id: student.id,
       name: student.fullname,
       cells,
-      submitted: cells.filter((cell) => cell === "graded" || cell === "pending").length,
+      submitted: cells.filter((cell) => cell === "graded" || cell === "offline" || cell === "pending").length,
       drafts: cells.filter((cell) => cell === "draft").length
     };
   });
   const lowAssignments = assignments
     .map((assignment, index) => ({
       ...assignment,
-      pct: students.length ? (rows.filter((row) => row.cells[index] === "graded" || row.cells[index] === "pending").length / students.length) * 100 : 0
+      pct: students.length ? (rows.filter((row) => ["graded", "offline", "pending"].includes(row.cells[index])).length / students.length) * 100 : 0
     }))
     .filter((assignment) => students.length > 0 && assignment.pct < 50);
   const draftCount = rows.reduce((sum, row) => sum + row.drafts, 0);

@@ -146,7 +146,7 @@ export function Legend({ items }: { items: Array<[string, string]> }) {
   return (
     <div className="legend">
       {items.map(([label, color]) => (
-        <span key={label}><span className={`key${color === 'dashed' ? ' dashed' : ''}`} style={color === 'dashed' ? undefined : { background: color }} />{label}</span>
+        <span key={label}><span className={`key${color === 'dashed' || color === 'striped' ? ` ${color}` : ''}`} style={color === 'dashed' || color === 'striped' ? undefined : { background: color }} />{label}</span>
       ))}
     </div>
   );

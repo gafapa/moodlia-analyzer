@@ -1,5 +1,6 @@
 // Per-activity summaries of an analysed course: how the students did in each assignment,
 // quiz and forum. Only students in the analysis count; teachers are already left out.
+import { countsAsHandedIn, gradedAssignmentIds } from "./delivery";
 import type { CourseAnalysis } from "./types";
 
 const UNSUBMITTED = new Set(["new", "draft", "reopened"]);
@@ -70,7 +71,12 @@ export function summarizeActivities(analysis: CourseAnalysis): ActivitySummary {
       name: String(assignment.name ?? `Assignment ${id}`),
       dueDate: dueDate && dueDate > 0 ? dueDate : null,
       students,
-      submitted: new Set(submissions.map((submission) => num(submission.userid))).size,
+      // Graded above 0 without a submission counts as handed in (on paper, for example).
+      submitted: new Set([
+        ...submissions.map((submission) => num(submission.userid)),
+        ...(analysis.assignmentGradesByAssign[id] ?? []).filter(isStudent).filter((grade) => countsAsHandedIn(num(grade.grade))).map((grade) => num(grade.userid)),
+        ...analysis.students.filter((student) => gradedAssignmentIds(student).has(id)).map((student) => student.id)
+      ]).size,
       late,
       graded: grades.length,
       avgGradePct: maxGrade && maxGrade > 0 ? average(grades.map((grade) => (grade / maxGrade) * 100)) : null

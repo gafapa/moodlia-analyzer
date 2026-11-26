@@ -156,7 +156,10 @@ export interface StudentMetrics {
   completedActivities: number;
   totalActivities: number;
   totalAssignments: number;
+  /** Assignments handed in: submitted in Moodle, or graded above 0 without a submission. */
   submittedAssignments: number;
+  /** Of those, graded above 0 without a submission in Moodle (handed in on paper, for example). */
+  handedInWithoutSubmission: number;
   submissionRate: number | null;
   lateSubmissions: number;
   onTimeRate: number | null;

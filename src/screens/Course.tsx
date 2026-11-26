@@ -317,7 +317,7 @@ function Submissions({ entry, onOpenStudent }: { entry: Analysed; onOpenStudent:
   const { t } = useI18n();
   const { analysis, insights } = entry;
   const { assignments, rows, lowAssignments } = insights.submissions;
-  const labels = { graded: t('cell.graded'), pending: t('cell.pending'), draft: t('cell.draft'), none: t('cell.none') };
+  const labels = { graded: t('cell.graded'), offline: t('cell.offline'), pending: t('cell.pending'), draft: t('cell.draft'), none: t('cell.none') };
   return (
     <>
       <section className="grid" style={{ ['--min' as string]: '200px' }}>
@@ -329,7 +329,7 @@ function Submissions({ entry, onOpenStudent }: { entry: Analysed; onOpenStudent:
         <Card
           title={t('submissions.map')}
           sub={t('submissions.mapSub')}
-          aside={<Legend items={[['graded', 'var(--series-1)'], ['pending', 'var(--series-2)'], ['draft', 'dashed'], ['none', '#E6EAEE']].map(([key, color]): [string, string] => [labels[key as keyof typeof labels], color])} />}
+          aside={<Legend items={[['graded', 'var(--series-1)'], ['offline', 'striped'], ['pending', 'var(--series-2)'], ['draft', 'dashed'], ['none', '#E6EAEE']].map(([key, color]): [string, string] => [labels[key as keyof typeof labels], color])} />}
         >
           <div className="heatmap" role="img" aria-label={t('submissions.mapAria', { students: rows.length, assignments: assignments.length })} style={{ ['--cells-min' as string]: `${assignments.length * 10}px` }}>
             {rows.map((row) => (
@@ -344,6 +344,7 @@ function Submissions({ entry, onOpenStudent }: { entry: Analysed; onOpenStudent:
               </div>
             ))}
           </div>
+          <p className="card-foot">{t('submissions.offlineFoot', { count: rows.reduce((sum, row) => sum + row.cells.filter((cell) => cell === 'offline').length, 0) })}</p>
           {lowAssignments.length > 0 && (
             <p className="card-foot">{t('submissions.low', { names: lowAssignments.slice(0, 3).map((assignment) => `«${assignment.name}»`).join(', ') })}</p>
           )}
