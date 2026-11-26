@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **My pending work**, the first screen after connecting: work to grade, quiz attempts to grade by hand, unanswered student forum questions, students to contact, assignments due this week and quiz questions to check, across the courses in progress you teach. Each item opens its Moodle page in the default browser, through a bridge function that only opens pages of the connected site.
+- **My pending work**, the first screen after connecting, across the courses in progress you teach, in six tabs (Today, To grade, Students, Calendar, Forums, Courses): work to grade, quiz attempts to grade by hand, unanswered student forum questions, students to contact, overdue work, drafts not submitted, assignments and quizzes due this week, and quiz questions to check, with the most urgent items of all kinds first. Charts of the waiting pile by course and age, submissions received against grades given per week, time to grade and feedback per course, the next two weeks of deadlines, student activity per day, risk by course and active students per course; a table of the courses side by side; and students at risk in several of your courses. Each item opens its Moodle page in the default browser, through a bridge function that only opens pages of the connected site.
 - An assignment graded above 0 without a submission counts as handed in (work handed in on paper, for example), in the submission rate, risk, the assignment map (as a striped cell) and the assignment summaries.
 - The collector records the connected user's roles in the course, so the pending work skips courses the user only takes.
 
