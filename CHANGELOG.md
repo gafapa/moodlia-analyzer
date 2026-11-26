@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **My pending work**, the first screen after connecting: work to grade, quiz attempts to grade by hand, unanswered student forum questions, students to contact, assignments due this week and quiz questions to check, across the courses in progress you teach. Each item opens its Moodle page in the default browser, through a bridge function that only opens pages of the connected site.
+- An assignment graded above 0 without a submission counts as handed in (work handed in on paper, for example), in the submission rate, risk, the assignment map (as a striped cell) and the assignment summaries.
+- The collector records the connected user's roles in the course, so the pending work skips courses the user only takes.
+
 ## 0.1.0 - 2026-11-26
 
 - Electron desktop app foundation. Moodle requests run in the main process, so browser CORS rules do not apply.

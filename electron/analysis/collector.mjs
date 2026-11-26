@@ -267,6 +267,10 @@ export class CourseCollector {
     report('Loading enrolled users', 50);
     const enrolled = await this.withRoles(courseId, asList(await this.read('get_enrolled_users', { course_id: courseId }, [])));
     const studentsRaw = enrolled.filter(isStudent);
+    // The connected user's roles in the course, so teacher lists can skip courses they only take.
+    const viewerId = this.viewerId();
+    const viewer = viewerId === null ? undefined : enrolled.find((user) => asNumber(user.id) === viewerId);
+    const viewerRoles = viewer ? asList(viewer.roles).map((role) => text(role.shortname)).filter(Boolean) : null;
 
     report('Loading grades', 58);
     const gradesPayload = await this.read('get_grade_items', { course_id: courseId }, {});
@@ -330,6 +334,7 @@ export class CourseCollector {
       assignmentGradesByAssign,
       attemptsByQuiz,
       postsByUser,
+      viewerRoles,
       quizQuestions,
       workload,
       // Standard Moodle web services do not expose the course log.
@@ -338,6 +343,16 @@ export class CourseCollector {
       unavailable: Object.fromEntries(this.unavailable),
       collectedAt: new Date().toISOString()
     };
+  }
+
+  /** The connected user's id, when the session knows it. */
+  viewerId() {
+    try {
+      const summary = /** @type {any} */ (this.session).summary?.();
+      return asNumber(summary?.userId);
+    } catch {
+      return null;
+    }
   }
 
   /**

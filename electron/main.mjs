@@ -91,6 +91,11 @@ function registerHandlers() {
     if (!Number.isInteger(id) || id < 1) throw new TypeError('A course id is required.');
     return history.record(historyKey(requireSession().summary().siteUrl, id), risks);
   });
+  // Opens a page of the connected Moodle site in the default browser.
+  handle('session:open', async (path) => {
+    await shell.openExternal(requireSession().pageUrl(String(path ?? '')));
+    return true;
+  });
   handle('session:read', (provider, operation, parameters) => requireSession().read(/** @type {any} */ (String(provider)), String(operation), parameters && typeof parameters === 'object' ? parameters : {}));
 }
 

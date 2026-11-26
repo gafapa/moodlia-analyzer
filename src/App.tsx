@@ -9,6 +9,7 @@ import type { CourseAnalysis } from './analysis/types';
 import { useI18n } from './i18n';
 import { Course, type Tab } from './screens/Course';
 import { Courses } from './screens/Courses';
+import { Pending } from './screens/Pending';
 import { SignIn } from './screens/SignIn';
 import { Student } from './screens/Student';
 
@@ -25,6 +26,7 @@ export interface Analysed {
 
 type View =
   | { name: 'signin' }
+  | { name: 'pending' }
   | { name: 'courses' }
   | { name: 'course'; course: CourseSummary; tab: Tab }
   | { name: 'student'; course: CourseSummary; tab: Tab; studentId: number };
@@ -72,7 +74,8 @@ export function App() {
     setAnalysed({});
     setErrors({});
     setMessage(notice);
-    setView({ name: 'courses' });
+    // The teacher's pending work is the first screen after connecting.
+    setView({ name: 'pending' });
   };
 
   const onSaved = async (saved: Result<{ id: string; tokensStored: boolean }>) => {
@@ -150,6 +153,7 @@ export function App() {
         tab={view.tab}
         onTab={(tab) => setView({ name: 'course', course, tab })}
         onBack={() => setView({ name: 'courses' })}
+        onPending={() => setView({ name: 'pending' })}
         onRefresh={() => void collect(course, true)}
         onOpenStudent={(studentId) => setView({ name: 'student', course, tab: view.tab, studentId })}
         onSwitchSite={() => void switchSite()}
@@ -157,10 +161,29 @@ export function App() {
     );
   }
 
+  if (view.name === 'pending') {
+    return (
+      <>
+        {message && <p className="notice" role="status" style={{ margin: 16 }}>{message}</p>}
+        <Pending
+          site={site}
+          courses={courses}
+          analysed={analysed}
+          progress={progress}
+          errors={errors}
+          collect={collect}
+          onOpenCourse={(course) => openCourse(course)}
+          onCourses={() => setView({ name: 'courses' })}
+          onSwitchSite={() => void switchSite()}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       {message && <p className="notice" role="status" style={{ margin: 16 }}>{message}</p>}
-      <Courses site={site} courses={courses} analysed={analysed} onOpen={(course) => openCourse(course)} onSwitchSite={() => void switchSite()} />
+      <Courses site={site} courses={courses} analysed={analysed} onOpen={(course) => openCourse(course)} onPending={() => setView({ name: 'pending' })} onSwitchSite={() => void switchSite()} />
     </>
   );
 }

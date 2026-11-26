@@ -145,10 +145,12 @@ function Tasks({ entry, studentId }: { entry: Analysed; studentId: number }) {
   const cells = insights.submissions.assignments.map((assignment, index) => {
     const status = row?.cells[index] ?? 'none';
     const item = gradeByAssignment.get(assignment.id);
-    const graded = status === 'graded' && item && item.gradePct !== null;
-    const kind = graded ? ((item.gradePct as number) < pass ? 'fail' : 'pass') : status === 'graded' ? 'pass' : status;
+    const isGraded = status === 'graded' || status === 'offline';
+    const graded = isGraded && item && item.gradePct !== null;
+    const kind = graded ? ((item.gradePct as number) < pass ? 'fail' : 'pass') : isGraded ? 'pass' : status;
     const value = graded && item.grade !== null ? String(Number(item.grade.toFixed(1))) : status === 'pending' ? '·' : '';
-    return { id: assignment.id, kind, value, title: `${assignment.name}: ${t(`task.${kind}` as MessageKey)}${value && value !== '·' ? ` (${value})` : ''}` };
+    const offline = status === 'offline' ? ` · ${t('task.offline')}` : '';
+    return { id: assignment.id, kind, value, title: `${assignment.name}: ${t(`task.${kind}` as MessageKey)}${value && value !== '·' ? ` (${value})` : ''}${offline}` };
   });
   const lowest = student.grades.items
     .filter((item) => item.gradePct !== null && item.type !== 'category')

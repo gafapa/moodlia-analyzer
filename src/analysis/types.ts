@@ -128,6 +128,8 @@ export interface CollectedCourseData {
   assignmentGradesByAssign: Record<number, Record<string, unknown>[]>;
   attemptsByQuiz: Record<number, Record<string, unknown>[]>;
   postsByUser: Record<number, Record<string, unknown>[]>;
+  /** The connected user's roles in the course (shortnames), or null when unknown. */
+  viewerRoles?: string[] | null;
   /** Marks per question of each quiz, by quiz id. */
   quizQuestions?: Record<number, QuizQuestionData>;
   /** Deadlines in all the students' courses. */
@@ -156,7 +158,10 @@ export interface StudentMetrics {
   completedActivities: number;
   totalActivities: number;
   totalAssignments: number;
+  /** Assignments handed in: submitted in Moodle, or graded above 0 without a submission. */
   submittedAssignments: number;
+  /** Of those, graded above 0 without a submission in Moodle (handed in on paper, for example). */
+  handedInWithoutSubmission: number;
   submissionRate: number | null;
   lateSubmissions: number;
   onTimeRate: number | null;

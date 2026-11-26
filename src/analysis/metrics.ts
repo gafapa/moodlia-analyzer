@@ -1,3 +1,4 @@
+import { handedInAssignments, isSubmitted } from "./delivery";
 import { formatDateFromTimestamp } from "./format";
 import type { GradeItem, StudentCourseData, StudentMetrics, TrendState } from "./types";
 
@@ -23,6 +24,7 @@ export class StudentMetricsComputer {
       assignments: Record<string, unknown>[];
       quizzes: Record<string, unknown>[];
       forums: Record<string, unknown>[];
+      assignmentGradesByAssign?: Record<number, Record<string, unknown>[]>;
     },
   ) {}
 
@@ -31,10 +33,11 @@ export class StudentMetricsComputer {
     const daysSinceAccess = lastAccessTs > 0 ? Math.max(0, Math.floor((this.now - lastAccessTs) / 86400)) : 999;
     const gradeItems = this.student.grades.items;
     const gradedItems = gradeItems.filter((item) => item.gradePct !== null);
-    const submittedAssignments = this.student.submissions.filter((submission) => {
-      const status = String(submission.status ?? "submitted");
-      return !["new", "draft", "reopened"].includes(status);
-    });
+    // Submissions in Moodle, which have a time; and assignments handed in, which also counts
+    // graded work with no submission (handed in on paper, for example).
+    const submittedAssignments = this.student.submissions.filter((submission) => isSubmitted(submission));
+    const assignmentIds = this.course.assignments.map((assignment) => asNumber(assignment.id)).filter((id): id is number => id !== null);
+    const handedIn = handedInAssignments(this.student, assignmentIds, this.course.assignmentGradesByAssign);
     const lateSubmissions = this.countLateSubmissions(submittedAssignments);
     const quizScores = this.computeQuizScores(this.student.quizAttempts);
     const attemptedQuizzes = new Set(
@@ -68,15 +71,19 @@ export class StudentMetricsComputer {
       completedActivities: this.student.completion.completed,
       totalActivities,
       totalAssignments,
-      submittedAssignments: submittedAssignments.length,
-      submissionRate: totalAssignments > 0 ? (submittedAssignments.length / totalAssignments) * 100 : null,
+      submittedAssignments: handedIn.all.size,
+      handedInWithoutSubmission: handedIn.withoutSubmission.size,
+      submissionRate: totalAssignments > 0 ? (handedIn.all.size / totalAssignments) * 100 : null,
       lateSubmissions,
+      // Only submissions in Moodle have a time to compare with the due date.
       onTimeRate:
         submittedAssignments.length > 0
           ? ((submittedAssignments.length - lateSubmissions) / submittedAssignments.length) * 100
-          : totalAssignments > 0
-            ? 0
-            : null,
+          : handedIn.all.size > 0
+            ? null
+            : totalAssignments > 0
+              ? 0
+              : null,
       totalQuizzes,
       quizAttemptsCount: this.student.quizAttempts.length,
       quizScores,

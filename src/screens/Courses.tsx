@@ -8,11 +8,12 @@ import { BarList, Icon, LanguageSelect, pct } from '../ui';
 
 type Period = 'current' | 'past' | 'all';
 
-export function Courses({ site, courses, analysed, onOpen, onSwitchSite }: {
+export function Courses({ site, courses, analysed, onOpen, onPending, onSwitchSite }: {
   site: SiteSummary;
   courses: CourseSummary[];
   analysed: Record<number, Analysed>;
   onOpen: (course: CourseSummary) => void;
+  onPending: () => void;
   onSwitchSite: () => void;
 }) {
   const { t, date, relative } = useI18n();
@@ -45,6 +46,7 @@ export function Courses({ site, courses, analysed, onOpen, onSwitchSite }: {
             </span>
           </div>
           <div className="actions">
+            <button type="button" className="btn" onClick={onPending}><Icon name="check" size={16} />{t('todo.title')}</button>
             <button type="button" className="btn" onClick={onSwitchSite}>{t('courses.switchSite')}</button>
             <LanguageSelect />
           </div>
