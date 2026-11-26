@@ -8,7 +8,7 @@ Project page: <https://gafapa.github.io/moodlia-analyzer/>
 
 ## Status
 
-Version 0.1.0 replaces the earlier analyzers `moodlia-analyzer-web` and `moodlia-analyzer-desktop`, which are discontinued and archived on GitHub. It is not released yet; the installers are built by the release workflow.
+Version 0.1.0 replaces the earlier analyzers `moodlia-analyzer-web` and `moodlia-analyzer-desktop`, which are discontinued and archived on GitHub. Installers for Windows, macOS and Linux are on the [releases page](https://github.com/gafapa/moodlia-analyzer/releases/latest).
 
 What works:
 
@@ -36,7 +36,9 @@ The interface follows the design on the MoodlIA Analyzer redesign canvas: one te
 
 ## Getting started
 
-Requirements: Node.js 22 or later and npm 10 or later.
+Download the installer for your system from the [latest release](https://github.com/gafapa/moodlia-analyzer/releases/latest) or the [project page](https://gafapa.github.io/moodlia-analyzer/): the `-setup.exe` on Windows, the `.dmg` for your Mac (Apple silicon `arm64` or Intel `x64`), or the `.AppImage` on Linux. The installers are not code-signed yet; see [Distribution](#distribution) for the first-launch warnings. `SHA256SUMS-<version>.txt` lists the checksums.
+
+To run it from source, use Node.js 22 or later and npm 10 or later:
 
 ```bash
 npm install

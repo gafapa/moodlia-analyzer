@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 - unreleased
+## 0.1.0 - 2026-11-26
 
 - Electron desktop app foundation. Moodle requests run in the main process, so browser CORS rules do not apply.
 - Read-only Moodle session over the adaptive adapter of `moodlia` 0.5.3: it detects the MoodlIA plugin with `get_moodlia_status` and core web services with `core_webservice_get_site_info`, and refuses operations that change Moodle data.
