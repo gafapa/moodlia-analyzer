@@ -450,6 +450,7 @@ function DayStrip({ overview, selected, onSelect }: { overview: ReturnType<typeo
   const names = weekdays();
   const max = Math.max(1, ...overview.calendar.map((entry) => entry.events.length));
   return (
+    <div className="day-strip-wrap">
     <div className="day-strip" role="group" aria-label={t('panel.next')}>
       {overview.calendar.map((entry, index) => {
         const date = new Date(entry.day * 1000);
@@ -471,6 +472,7 @@ function DayStrip({ overview, selected, onSelect }: { overview: ReturnType<typeo
           </button>
         );
       })}
+    </div>
     </div>
   );
 }

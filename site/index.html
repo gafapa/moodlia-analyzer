@@ -13,6 +13,7 @@
     <div class="wrap top-row">
       <a class="brand" href="./"><img src="favicon.svg" alt="" width="28" height="28">MoodlIA Analyzer</a>
       <nav aria-label="Main">
+        <a href="#screens">Screens</a>
         <a href="#download">Download</a>
         <a href="#how">How it works</a>
         <a href="#privacy">Privacy</a>
@@ -23,9 +24,9 @@
 
   <main>
     <section class="hero wrap">
-      <p class="status" id="status">Version 0.1.0 is in development. There is no release yet.</p>
-      <h1>See how every student is doing in a Moodle course</h1>
-      <p class="lead">A desktop app that reads one course from your Moodle site and shows engagement, predicted grades, risk and recommendations for each student. It works on any Moodle site with a web service token, and uses the MoodlIA plugin when the site has it.</p>
+      <p class="status" id="status">Version 0.2.0 is available.</p>
+      <h1>Your pending work and every student, from your Moodle courses</h1>
+      <p class="lead">A desktop app for teachers. It opens on everything waiting for you across your courses — work to grade, students to contact, unanswered forum questions, deadlines — and analyses each course and student: submissions, grades, quizzes, forums, completion and risk. It works on any Moodle site that allows the Moodle app, and only reads.</p>
       <p class="actions">
         <a class="button primary" href="#download">Download</a>
         <a class="button" href="https://github.com/gafapa/moodlia-analyzer#getting-started">Build from source</a>
@@ -33,6 +34,14 @@
     </section>
 
     <section class="wrap grid" aria-label="Features">
+      <article>
+        <h2>Your pending work first</h2>
+        <p>One screen across the courses you teach: what to grade and since when, who to contact, forum questions with no reply, deadlines of the next two weeks. Each item opens its Moodle page in your browser.</p>
+      </article>
+      <article>
+        <h2>Every course and student</h2>
+        <p>Submissions and their timing, grading time, quiz question statistics, the forum reply network, completion, profiles and risk, in Galician, Spanish or English.</p>
+      </article>
       <article>
         <h2>Any Moodle site</h2>
         <p>Sign in as you do in the Moodle app and the app gets the same kind of token. No plugin or browser extension is needed, and browser CORS limits do not apply because requests are made by the app.</p>
@@ -45,6 +54,19 @@
         <h2>Partial access is fine</h2>
         <p>If the token cannot read a source, the analysis still runs and the app lists what it could not read and why.</p>
       </article>
+    </section>
+
+    <section class="wrap" id="screens">
+      <h2>Screens</h2>
+      <p class="muted">These screenshots use a demonstration site with fictitious students.</p>
+      <div class="shots">
+        <figure><img src="screenshots/panel-today.png" alt="My pending work: work to grade, students to contact, forum questions and deadlines, with the most urgent items first" width="1360" height="860" loading="lazy"><figcaption>My pending work: the most urgent items across your courses.</figcaption></figure>
+        <figure><img src="screenshots/panel-grading.png" alt="To grade: submissions received against grades given per week, and the waiting pile by course" width="1360" height="860" loading="lazy"><figcaption>Grading: received against graded, and how long work waits.</figcaption></figure>
+        <figure><img src="screenshots/panel-calendar.png" alt="Calendar: deadlines of the next two weeks, with who has not handed in" width="1360" height="860" loading="lazy"><figcaption>The next two weeks of deadlines in all your courses.</figcaption></figure>
+        <figure><img src="screenshots/course-summary.png" alt="Course summary: indicators, what needs attention and risk level" width="1360" height="860" loading="lazy"><figcaption>A course at a glance, with what needs attention.</figcaption></figure>
+        <figure><img src="screenshots/course-quizzes.png" alt="Quiz questions by facility and discrimination" width="1360" height="860" loading="lazy"><figcaption>Quiz questions to review, as in Moodle's quiz statistics.</figcaption></figure>
+        <figure><img src="screenshots/student-summary.png" alt="A student's detail: why the risk level and what can be done" width="1360" height="860" loading="lazy"><figcaption>Each student: why the risk level and what can be done.</figcaption></figure>
+      </div>
     </section>
 
     <section class="wrap" id="download">
@@ -68,7 +90,7 @@
       <ol class="steps">
         <li><strong>Add your site.</strong> Enter its address and sign in as you do in the Moodle app: with your username and password, or on your Moodle's own sign-in page if the site uses one. The app gets the same kind of token as the Moodle app, encrypts it with your operating system's keychain and does not save your password. You can also enter a token by hand.</li>
         <li><strong>Connect.</strong> The app checks which services answer: standard Moodle web services, the MoodlIA plugin, or both.</li>
-        <li><strong>Pick a course.</strong> The app collects the course data and analyses each student: engagement, predicted grade, risk level and recommendations.</li>
+        <li><strong>See your pending work.</strong> The app reads the courses in progress you teach and lists what is waiting for you, most urgent first. Open any course for its full analysis, and any student for the detail.</li>
       </ol>
     </section>
 

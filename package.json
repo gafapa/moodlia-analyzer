@@ -1,6 +1,6 @@
 {
   "name": "moodlia-analyzer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Desktop app for Moodle course and student analysis, connecting with or without the MoodlIA plugin.",
   "license": "MIT",
@@ -28,7 +28,10 @@
     "package:dir": "npm run build && electron-builder --dir --publish never",
     "smoke:packaged": "node scripts/smoke.mjs --packaged",
     "package": "npm run build && electron-builder --publish never",
-    "check": "npm run typecheck && npm test && npm run smoke"
+    "check": "npm run typecheck && npm test && npm run smoke",
+    "demo": "node scripts/demo-moodle.mjs 8090",
+    "screenshots": "npm run build && node scripts/screenshots.mjs",
+    "layout": "npm run build && node scripts/layout-check.mjs"
   },
   "dependencies": {
     "moodlia": "0.5.3"

@@ -4,11 +4,17 @@ Desktop app for Moodle course and student analysis. It connects to any Moodle si
 
 Project page: <https://gafapa.github.io/moodlia-analyzer/>
 
+| My pending work | A course | A student |
+| --- | --- | --- |
+| ![My pending work: the most urgent items across the courses you teach](docs/screenshots/en/panel-today.png) | ![A course at a glance](docs/screenshots/en/course-summary.png) | ![A student's detail](docs/screenshots/en/student-summary.png) |
+
+The screenshots use the demonstration site in `scripts/demo-moodle.mjs`, with fictitious students only. All of them are in [`docs/screenshots`](docs/screenshots), in English and Spanish.
+
 [Status](#status) · [Getting started](#getting-started) · [Architecture](#architecture) · [Development](#development) · [Distribution](#distribution) · [Security and privacy](#security-and-privacy) · [Roadmap](#roadmap) · [License](#license)
 
 ## Status
 
-Version 0.1.0 replaces the earlier analyzers `moodlia-analyzer-web` and `moodlia-analyzer-desktop`, which are discontinued and archived on GitHub. Installers for Windows, macOS and Linux are on the [releases page](https://github.com/gafapa/moodlia-analyzer/releases/latest).
+Version 0.2.0 adds the teacher's pending work across courses. Version 0.1.0 replaced the earlier analyzers `moodlia-analyzer-web` and `moodlia-analyzer-desktop`, which are discontinued and archived on GitHub. Installers for Windows, macOS and Linux are on the [releases page](https://github.com/gafapa/moodlia-analyzer/releases/latest).
 
 What works:
 
@@ -39,7 +45,7 @@ What works:
 - No application menu on Windows and Linux; macOS keeps the standard app, edit and window menus.
 - Read-only access to any read operation of the canonical contracts.
 
-The interface follows the design on the MoodlIA Analyzer redesign canvas: one teal accent, Plus Jakarta Sans headings and Inter text (both bundled with the app, since the Content Security Policy allows no remote fonts), and the reference data-visualization palette for charts. It has a light theme only for now.
+The interface follows the design on the MoodlIA Analyzer redesign canvas: one teal accent, Plus Jakarta Sans headings and Inter text (both bundled with the app, since the Content Security Policy allows no remote fonts), and the reference data-visualization palette for charts. It has a light theme only for now. It adapts to the window from 800 pixels wide: below 1100 pixels the course sidebar keeps only its icons, and on wide screens the content keeps a readable width and stays centred.
 
 ## Getting started
 
@@ -136,6 +142,9 @@ Differences from the discontinued `moodlia-analyzer-web`, which this app correct
 | `npm test` | Main-process tests with `node --test`, including end-to-end tests that run the real `moodlia` and `moodle-core-cli` clients against a fake Moodle REST endpoint on `127.0.0.1` (connection with and without the plugin, and a full course collection that checks the Moodle function names and parameters sent). Then the analysis tests with Vitest. |
 | `npm run smoke` | Builds the interface and starts the app with `MOODLIA_ANALYZER_SMOKE=1`. The app checks that the page renders, the bridge is present, Node is not reachable from the page and a bridge call returns, then runs the Moodle sign-in window against a fake site on `127.0.0.1` (sign-in form, redirects and the signed token) and exits. A temporary profile directory is used. |
 | `npm run check` | Typecheck, tests and smoke check. |
+| `npm run demo` | A Moodle REST endpoint with fictitious courses, students and activity on `http://127.0.0.1:8090` (`scripts/demo-moodle.mjs`); add it as a site with any token to try the app without real student data. |
+| `npm run screenshots` | Builds the interface and takes the screenshots in `docs/screenshots` from the demo site, in English and Spanish, with a temporary profile directory. `SHOTS_WIDTH`, `SHOTS_HEIGHT`, `SHOTS_LANGUAGES` and `SHOTS_DIR` change the window size, languages and folder. |
+| `npm run layout` | Builds the interface and opens every screen with the demo site at widths from 900 to 2560 pixels, reporting anything wider than the window. |
 | `npm run package:dir` | Builds the interface and an unpacked app for this computer in `release/`. |
 | `npm run smoke:packaged` | Runs the smoke check on the unpacked app in `release/`. |
 | `npm run package` | Builds the installers for this operating system in `release/`. |

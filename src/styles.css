@@ -35,6 +35,8 @@
 }
 
 * { box-sizing: border-box; }
+/* The page colour behind everything, scrollbars included, so no white band shows at the edge. */
+html { background: var(--bg); scrollbar-color: #C3CBD3 var(--bg); scrollbar-width: thin; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--text); font-size: 14px; line-height: 1.45; }
 h1, h2, h3 { font-family: var(--display); margin: 0; }
 a { color: var(--brand); }
@@ -86,8 +88,10 @@ button, input, select { font: inherit; color: inherit; }
 .sidebar-note { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 12px; background: var(--bg); font-size: 12px; color: var(--muted); }
 .sidebar-note strong { font-size: 13px; color: var(--ink); }
 .main { flex: 999 1 560px; min-width: 0; padding: 20px clamp(16px, 3vw, 40px) 48px; display: flex; flex-direction: column; gap: 24px; }
+/* On wide screens the course panel keeps a readable width and stays centred. */
+.main > * { width: 100%; min-width: 0; max-width: 1480px; margin-inline: auto; }
 .page { min-height: 100vh; padding: 24px clamp(16px, 3vw, 40px) 56px; }
-.page-inner { max-width: 1360px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+.page-inner { max-width: 1480px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
 .page-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .page-title { font-size: 28px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; }
 .page-sub { margin: 6px 0 0; color: var(--muted); }
@@ -96,9 +100,10 @@ button, input, select { font: inherit; color: inherit; }
 
 /* Tabs */
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
-.tab { min-height: 44px; padding: 0 16px; margin-bottom: -1px; border: 0; border-bottom: 3px solid transparent; background: transparent; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; }
+.tab { flex: none; white-space: nowrap; }
+.tab { min-height: 44px; padding: 0 12px; margin-bottom: -1px; border: 0; border-bottom: 3px solid transparent; background: transparent; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; }
 .tab[aria-selected='true'] { border-bottom-color: var(--brand); color: var(--brand-ink); font-weight: 600; }
-.tab-intro { margin: -8px 0 0; color: var(--muted); }
+.tab-intro { margin: -8px auto 0; color: var(--muted); }
 .tab-panel { display: flex; flex-direction: column; gap: 16px; }
 
 /* Cards */
@@ -172,7 +177,7 @@ th button { border: 0; background: none; padding: 0; font: inherit; color: inher
 
 /* Bars and grids drawn in HTML */
 .barlist { display: flex; flex-direction: column; gap: 8px; }
-.barrow { display: grid; grid-template-columns: var(--label, 110px) minmax(0, 1fr) 44px; align-items: center; gap: 10px; font-size: 13px; }
+.barrow { display: grid; grid-template-columns: minmax(64px, min(var(--label, 110px), 38%)) minmax(0, 1fr) 44px; align-items: center; gap: 10px; font-size: 13px; }
 .barrow-label { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .track { position: relative; height: 12px; border-radius: 4px; background: var(--surface-3); }
 .track > .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; }
@@ -182,7 +187,7 @@ th button { border: 0; background: none; padding: 0; font: inherit; color: inher
 .stacked-row { display: flex; flex-direction: column; gap: 4px; }
 .stacked-head { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
 .heatmap { display: flex; flex-direction: column; gap: 4px; overflow-x: auto; }
-.heat-row { display: grid; grid-template-columns: 140px minmax(var(--cells-min, 400px), 1fr) 52px; align-items: center; gap: 12px; }
+.heat-row { display: grid; grid-template-columns: minmax(90px, 140px) minmax(var(--cells-min, 400px), 1fr) 52px; align-items: center; gap: 12px; }
 .heat-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 0; background: none; padding: 0; text-align: left; cursor: pointer; color: var(--ink); }
 .heat-cells { display: grid; gap: 3px; }
 .heat-cell { display: block; height: 16px; border-radius: 3px; }
@@ -282,7 +287,7 @@ th button { border: 0; background: none; padding: 0; font: inherit; color: inher
 
 /* Stacked rows (submission timing) */
 .stacked { display: flex; flex-direction: column; gap: 8px; }
-.stacked-row { display: grid; grid-template-columns: var(--label, 200px) minmax(0, 1fr) 44px; align-items: center; gap: 10px; font-size: 13px; }
+.stacked-row { display: grid; grid-template-columns: minmax(72px, min(var(--label, 200px), 38%)) minmax(0, 1fr) 44px; align-items: center; gap: 10px; font-size: 13px; }
 .stacked-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
 .stacked-bar { display: flex; gap: 2px; height: 18px; border-radius: 5px; overflow: hidden; background: var(--surface-3); }
 .stacked-bar span { display: block; min-width: 3px; }
@@ -339,3 +344,29 @@ th button { border: 0; background: none; padding: 0; font: inherit; color: inher
 .day-name { font-size: 11px; color: inherit; opacity: 0.8; }
 .day-number { font-family: var(--display); font-weight: 700; font-size: 16px; }
 .day-count { font-size: 12px; font-weight: 600; min-height: 16px; }
+
+/* Adapting to the window */
+.day-strip-wrap { container-type: inline-size; }
+@container (max-width: 620px) {
+  .day-strip { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+}
+.student-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; flex: 1 1 420px; max-width: 560px; }
+
+/* Narrow windows: the course sidebar keeps only its icons. */
+@media (max-width: 1100px) {
+  .shell { flex-wrap: nowrap; }
+  .sidebar { flex: 0 0 72px; max-width: 72px; padding: 20px 10px; gap: 20px; align-items: center; }
+  .sidebar .brand { padding: 0; }
+  .sidebar .brand-name, .sidebar .brand-sub, .sidebar-note, .site-switch { display: none; }
+  .nav-item { justify-content: center; padding: 0; width: 48px; }
+  .nav-item span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .page-title { font-size: 24px; }
+  .todo-item { grid-template-columns: 10px minmax(0, 1fr); }
+  .todo-open { grid-column: 2; justify-self: start; }
+}
+
+/* Large screens: slightly larger text. */
+@media (min-width: 1800px) {
+  body { font-size: 15px; }
+  .page-title { font-size: 32px; }
+}
