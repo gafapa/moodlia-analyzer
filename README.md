@@ -15,6 +15,7 @@ What works:
 - Saved Moodle sites with tokens encrypted by the operating system keychain.
 - Connection with or without the MoodlIA plugin, with the providers detected on connect.
 - **Sign-in screen**: saved sites, and a new site by signing in as in the Moodle app or with a token.
+- **My pending work**, the first screen after connecting: on one screen, across the courses in progress you teach (by default those you entered in the last 60 days; the choice is remembered), the submissions waiting for a grade, quiz attempts with questions to grade by hand, forum discussions a student opened that nobody answered, students to contact (high risk or no access for two weeks, up to five per course), assignments due this week with who has not handed them in, and quiz questions to check. Each item opens its Moodle page (the grading table, the quiz grading report, the discussion, the student's course profile, the assignment, the quiz statistics) in the default browser.
 - **My courses**: the site's courses with search and a current, finished or all filter; each analysed course shows its students, average grade, submissions waiting for a grade and risk, and two or more analysed courses are compared side by side.
 - **Course panel**, in tabs so each view shows a few things, each with a sentence on what it shows:
   - *Summary*: four indicators, a "needs your attention" list that opens the tab concerned, and the risk level with the students to look at first.
@@ -75,13 +76,13 @@ One token is enough when its service has everything the app uses: the Moodle app
 | Main process | `electron/main.mjs` | Window, security settings, and the IPC handlers the interface calls. |
 | Moodle session | `electron/moodle/session.mjs` | Read-only session over the adaptive adapter of the [`moodlia`](https://www.npmjs.com/package/moodlia) package, which builds on [`moodle-core-cli`](https://www.npmjs.com/package/moodle-core-cli). |
 | Course collector | `electron/analysis/collector.mjs` | Reads one course through core web services and returns the data the analysis expects. |
-| Analysis | `src/analysis/` | Student metrics, grade prediction, risk and recommendations (`courseAnalyzer.ts`, `metrics.ts`); per-activity summaries; chart data; `insights.ts`: the grading queue and time to grade, feedback, drafts, who submitted each assignment, submissions by weekday and hour, content by type, course setting checks, and a student's grade over time against the class; and `advanced.ts`: submission timing, the completion matrix, days since the last access, grade spread, quiz question statistics, the forum reply network, student profiles, risk changes between analyses and deadlines across courses. TypeScript, no Moodle access. |
+| Analysis | `src/analysis/` | `delivery.ts`: when an assignment counts as handed in; `todo.ts`: the teacher's pending work across courses with the Moodle page of each item. Student metrics, grade prediction, risk and recommendations (`courseAnalyzer.ts`, `metrics.ts`); per-activity summaries; chart data; `insights.ts`: the grading queue and time to grade, feedback, drafts, who submitted each assignment, submissions by weekday and hour, content by type, course setting checks, and a student's grade over time against the class; and `advanced.ts`: submission timing, the completion matrix, days since the last access, grade spread, quiz question statistics, the forum reply network, student profiles, risk changes between analyses and deadlines across courses. TypeScript, no Moodle access. |
 | Charts | `src/charts/`, `src/ui.tsx` | SVG charts (grade distribution, engagement against grade, lines over time, columns, box plots, quiz questions, reply network, risk flow) with hover tooltips, and HTML bars, stacked bars and grids; risk levels carry a shape and a label as well as a colour. |
 | Risk history | `electron/history.mjs` | Each course's daily risk levels on this computer, to compare analyses. |
 | Translations | `src/i18n/` | Galician, Spanish and English catalogs; `en.ts` defines the keys and the typechecker requires every catalog to have all of them. |
 | Moodle app token | `electron/moodle/mobile-token.mjs`, `electron/sign-in-window.mjs` | Reads the site's mobile settings, then gets the token with username and password through `login/token.php` or with the site's own sign-in page through `admin/tool/mobile/launch.php`. |
 | Profiles | `electron/profiles.mjs` | Saved sites; tokens encrypted with Electron `safeStorage`. |
-| Bridge | `electron/preload.cjs` | The only functions the page can call: `profiles.list/save/signInMethod/signIn/remove`, `session.connect/disconnect/courses/read` and `analysis.collect/history/onProgress`. |
+| Bridge | `electron/preload.cjs` | The only functions the page can call: `profiles.list/save/signInMethod/signIn/remove`, `session.connect/disconnect/courses/read/open` and `analysis.collect/history/onProgress`. |
 | Interface | `src/App.tsx`, `src/screens/` | React and TypeScript, built with Vite: the sign-in, course list, course panel and student screens, and the state they share (the connected site, its courses and the analyses collected in the session). |
 
 Moodle requests are made by Node in the main process, so browser CORS rules do not apply and no browser extension is needed.
@@ -102,6 +103,8 @@ The collector reads, through core web services:
 | Per student | `get_activity_completion_statuses` and `get_user_quiz_attempts_legacy` for each quiz |
 | Quiz questions | `get_quiz_attempt_review` (all pages) for each student's first finished attempt of each quiz; only the mark per question and the first 90 characters of its text are kept |
 | Workload | `get_user_courses` for each student, then `get_course_assignments` (due dates) and `get_course_quizzes` (closing dates) once for all those courses; only courses the token can read are covered, and the app says how many |
+
+An assignment counts as handed in when it has a submission in Moodle or a grade above 0 without one, since work handed in on paper or in class is graded with no submission; a grade of 0 without a submission still counts as not handed in. Such work appears as a striped cell in the assignment map. Submission timing only uses submissions in Moodle, which have a time.
 
 Activities students cannot see yet are left out of every count: hidden modules, and assignments that do not accept submissions yet. Announcement forums are left out of forum participation, since only teachers post there. Last access is the last access to the course (Moodle's `lastcourseaccess`), not to the whole site.
 
@@ -172,6 +175,7 @@ The installers are not code-signed yet: Windows SmartScreen warns about an unkno
 - Tokens are encrypted with the operating system keychain (DPAPI on Windows, Keychain on macOS, the Secret Service on Linux) and never reach the page. If the system cannot encrypt, tokens are kept in memory until the app closes and are not written to disk.
 - A password typed to sign in is sent only to the site's `login/token.php` over HTTPS (HTTP only on this computer), with redirects refused, and is cleared from the form afterwards; it is never saved.
 - The Moodle sign-in window runs the site's page with no bridge to the app, in an in-memory session that is cleared afterwards. It accepts only HTTPS pages (or HTTP on this computer), refuses new windows and permission requests, and accepts a token only when Moodle signed it with this site's address and a random value created for that sign-in. The private token Moodle may add for automatic web sign-in is discarded.
+- The pending-work buttons open pages of the connected Moodle site in the default browser. The main process builds the address from the site address and a page path, and refuses anything else.
 - Course and student data stay on the computer. The app has no backend and sends nothing to MoodlIA. The only analysis data written to disk is the risk history: user ids and risk levels per course and day, keyed by a hash of the site address.
 
 ## Roadmap

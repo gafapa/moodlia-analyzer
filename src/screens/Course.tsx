@@ -30,13 +30,14 @@ type Filter = 'all' | 'atRisk' | 'drafts' | 'inactive';
 type SortKey = 'name' | 'risk' | 'grade' | 'tasks' | 'engagement' | 'access';
 const RISK_ORDER: Record<Risk, number> = { high: 3, medium: 2, low: 1 };
 
-export function Course({ course, siteName, entry, progress, error, onBack, onRefresh, onOpenStudent, onSwitchSite, tab, onTab }: {
+export function Course({ course, siteName, entry, progress, error, onBack, onPending, onRefresh, onOpenStudent, onSwitchSite, tab, onTab }: {
   course: CourseSummary;
   siteName: string;
   entry: Analysed | null;
   progress: { message: string; percent: number } | null;
   error: string;
   onBack: () => void;
+  onPending: () => void;
   onRefresh: () => void;
   onOpenStudent: (id: number) => void;
   onSwitchSite: () => void;
@@ -54,6 +55,7 @@ export function Course({ course, siteName, entry, progress, error, onBack, onRef
           <span className="brand-sub">{t('nav.switchSite')}</span>
         </button>
         <div className="nav">
+          <button type="button" className="nav-item" onClick={onPending}><Icon name="check" /><span>{t('todo.title')}</span></button>
           <button type="button" className="nav-item" onClick={onBack}><Icon name="book" /><span>{t('nav.courses')}</span></button>
           <span className="nav-item" aria-current="page"><Icon name="chart" /><span>{course.fullName}</span></span>
         </div>

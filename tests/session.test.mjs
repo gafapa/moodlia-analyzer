@@ -106,3 +106,12 @@ test('reads before connecting are refused', async () => {
   const session = new MoodleSession(profile, { moodliaContract: {}, createSiteAdapter: fakeSite({ core: { operations: [] } }) });
   await assert.rejects(session.read('core', 'get_site_info'), { code: 'not_connected' });
 });
+
+test('only pages of the connected site can be opened', () => {
+  const session = Object.create(MoodleSession.prototype);
+  session.summary = () => ({ siteUrl: 'https://moodle.example.edu/school/' });
+  assert.equal(session.pageUrl('/mod/assign/view.php?id=5&action=grading'), 'https://moodle.example.edu/school/mod/assign/view.php?id=5&action=grading');
+  for (const bad of ['//evil.example/x', 'https://evil.example/', '/mod/view.php?x=<script>', 'mod/view.php', '/a b']) {
+    assert.throws(() => session.pageUrl(bad), /Only pages of the connected Moodle site/);
+  }
+});

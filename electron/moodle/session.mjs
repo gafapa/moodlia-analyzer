@@ -148,6 +148,20 @@ export class MoodleSession {
     }
   }
 
+  /**
+   * The address of a page of the connected site, for a path such as
+   * "/mod/assign/view.php?id=5". Only paths on this site are accepted.
+   * @param {string} path
+   */
+  pageUrl(path) {
+    const value = String(path ?? '');
+    if (!/^\/(?!\/)[\w./-]*(\?[\w=&%.-]*)?$/.test(value)) throw new SessionError('invalid_path', 'Only pages of the connected Moodle site can be opened.');
+    const base = this.summary().siteUrl.replace(/\/+$/, '');
+    const url = new URL(`${base}${value}`);
+    if (url.origin !== new URL(base).origin) throw new SessionError('invalid_path', 'Only pages of the connected Moodle site can be opened.');
+    return url.toString();
+  }
+
   /** Courses the connected user is enrolled in. */
   async listCourses() {
     const userid = this.summary().userId;

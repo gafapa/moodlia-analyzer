@@ -128,6 +128,8 @@ export interface CollectedCourseData {
   assignmentGradesByAssign: Record<number, Record<string, unknown>[]>;
   attemptsByQuiz: Record<number, Record<string, unknown>[]>;
   postsByUser: Record<number, Record<string, unknown>[]>;
+  /** The connected user's roles in the course (shortnames), or null when unknown. */
+  viewerRoles?: string[] | null;
   /** Marks per question of each quiz, by quiz id. */
   quizQuestions?: Record<number, QuizQuestionData>;
   /** Deadlines in all the students' courses. */

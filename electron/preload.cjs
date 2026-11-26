@@ -16,7 +16,8 @@ contextBridge.exposeInMainWorld('analyzer', Object.freeze({
     connect: (request) => invoke('session:connect', request),
     disconnect: () => invoke('session:disconnect'),
     courses: () => invoke('session:courses'),
-    read: (provider, operation, parameters) => invoke('session:read', provider, operation, parameters)
+    read: (provider, operation, parameters) => invoke('session:read', provider, operation, parameters),
+    open: (path) => invoke('session:open', path)
   }),
   analysis: Object.freeze({
     collect: (courseId, course) => invoke('analysis:collect', courseId, course),

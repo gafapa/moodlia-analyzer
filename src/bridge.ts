@@ -62,6 +62,8 @@ interface AnalyzerBridge {
     disconnect(): Promise<Result<boolean>>;
     courses(): Promise<Result<CourseSummary[]>>;
     read(provider: 'moodlia' | 'core', operation: string, parameters?: Record<string, unknown>): Promise<Result<unknown>>;
+    /** Opens a page of the connected Moodle site, such as "/mod/assign/view.php?id=5", in the default browser. */
+    open(path: string): Promise<Result<boolean>>;
   };
   analysis: {
     collect(courseId: number, course?: Record<string, unknown>): Promise<Result<CollectedCourseData>>;
