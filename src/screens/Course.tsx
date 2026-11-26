@@ -55,9 +55,9 @@ export function Course({ course, siteName, entry, progress, error, onBack, onPen
           <span className="brand-sub">{t('nav.switchSite')}</span>
         </button>
         <div className="nav">
-          <button type="button" className="nav-item" onClick={onPending}><Icon name="check" /><span>{t('todo.title')}</span></button>
-          <button type="button" className="nav-item" onClick={onBack}><Icon name="book" /><span>{t('nav.courses')}</span></button>
-          <span className="nav-item" aria-current="page"><Icon name="chart" /><span>{course.fullName}</span></span>
+          <button type="button" className="nav-item" title={t('todo.title')} onClick={onPending}><Icon name="check" /><span>{t('todo.title')}</span></button>
+          <button type="button" className="nav-item" title={t('nav.courses')} onClick={onBack}><Icon name="book" /><span>{t('nav.courses')}</span></button>
+          <span className="nav-item" aria-current="page" title={course.fullName}><Icon name="chart" /><span>{course.fullName}</span></span>
         </div>
         <div className="sidebar-note">
           <strong>{t('nav.readOnly')}</strong>
@@ -81,7 +81,7 @@ export function Course({ course, siteName, entry, progress, error, onBack, onPen
           </div>
         </header>
 
-        {error && <p className="alert" role="alert" style={{ margin: 0 }}>{error}</p>}
+        {error && <p className="alert" role="alert" style={{ marginBlock: 0 }}>{error}</p>}
         {!entry && !error && (
           <div className="card" aria-live="polite">
             <span className="card-title">{t('course.collecting')}</span>

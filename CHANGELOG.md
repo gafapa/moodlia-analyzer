@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-11-26
+
+- Adapts better to the window: no white band at the right edge (the scrollbar and the window background use the page colour), the course sidebar keeps only its icons below 1100 pixels, labels in bars and lists shrink with the space, the student header and the two-week strip rearrange in narrow windows, content keeps a readable width on wide screens, and text is slightly larger from 1800 pixels. The window can be as narrow as 800 pixels.
+- `npm run demo`: a demonstration Moodle with fictitious courses and students; `npm run screenshots` takes the screenshots in `docs/screenshots` from it; `npm run layout` checks every screen at widths from 900 to 2560 pixels.
+- Screenshots in the README and on the project page.
 
 - **My pending work**, the first screen after connecting, across the courses in progress you teach, in six tabs (Today, To grade, Students, Calendar, Forums, Courses): work to grade, quiz attempts to grade by hand, unanswered student forum questions, students to contact, overdue work, drafts not submitted, assignments and quizzes due this week, and quiz questions to check, with the most urgent items of all kinds first. Charts of the waiting pile by course and age, submissions received against grades given per week, time to grade and feedback per course, the next two weeks of deadlines, student activity per day, risk by course and active students per course; a table of the courses side by side; and students at risk in several of your courses. Each item opens its Moodle page in the default browser, through a bridge function that only opens pages of the connected site.
 - An assignment graded above 0 without a submission counts as handed in (work handed in on paper, for example), in the submission rate, risk, the assignment map (as a striped cell) and the assignment summaries.

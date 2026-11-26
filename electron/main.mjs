@@ -109,8 +109,10 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
-    minWidth: 900,
-    minHeight: 600,
+    minWidth: 800,
+    minHeight: 560,
+    // The page colour, so resizing never shows a white band before the page catches up.
+    backgroundColor: '#F4F6F8',
     title: 'MoodlIA Analyzer',
     show: false,
     webPreferences: {

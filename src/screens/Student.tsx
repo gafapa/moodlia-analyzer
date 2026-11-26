@@ -51,7 +51,7 @@ export function Student({ entry, studentId, courseName, onBack }: { entry: Analy
               </div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(110px, 1fr))', gap: 12 }}>
+          <div className="student-stats">
             <span className="stat"><span className="stat-label">{t('student.grade')}</span><span className="stat-value" style={{ color: (s.finalGradePct ?? 100) < pass ? 'var(--risk-high-ink)' : undefined }}>{pct(s.finalGradePct)}</span></span>
             <span className="stat"><span className="stat-label">{t('student.predicted')}</span><span className="stat-value">{pct(student.prediction.predictedGradePct)}</span></span>
             <span className="stat"><span className="stat-label">{t('student.tasks')}</span><span className="stat-value">{s.totalAssignments ? `${s.submittedAssignments}/${s.totalAssignments}` : '—'}</span></span>
